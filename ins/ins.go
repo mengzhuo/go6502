@@ -109,6 +109,9 @@ type Ins struct {
 }
 
 func (i Ins) String() string {
+	if i.Mode == Immediate {
+		return fmt.Sprintf("%s", i.Name)
+	}
 	return fmt.Sprintf("%s_%s", i.Name, i.Mode)
 }
 

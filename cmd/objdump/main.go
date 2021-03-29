@@ -23,7 +23,11 @@ func main() {
 		log.Fatal(err)
 	}
 	for _, o := range l {
-		fmt.Printf("0x%04x %v 0x%04x\n", o.Offset, o.Ins, o.Oper)
+		if o.Ins.Mode != ins.Implied {
+			fmt.Printf("0x%04x %v 0x%04x\n", o.Offset, o.Ins, o.Oper)
+			continue
+		}
+		fmt.Printf("0x%04x %v\n", o.Offset, o.Ins)
 	}
 }
 
