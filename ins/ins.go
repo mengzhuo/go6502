@@ -1,6 +1,9 @@
 package ins
 
-import "fmt"
+import (
+	"fmt"
+	"time"
+)
 
 // http://obelisk.me.uk/6502/instructions.html
 
@@ -99,11 +102,11 @@ const (
 
 //go:generate python3 gen.py
 type Ins struct {
+	Cycles time.Duration // base cycle count
 	Name   Name
 	Op     uint8
 	Mode   Mode
 	Affect Flag
-	Cycles uint8 // base cycle count
 	Bytes  uint8
 	Page   PagePolicy
 }

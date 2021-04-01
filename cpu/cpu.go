@@ -6,12 +6,24 @@ import (
 	"time"
 )
 
+const (
+	FlagCarry uint8 = iota
+	FlagZero
+	FlagIRQDisable
+	FlagDecimalMode
+	FlagBreak
+	FlagBreak2
+	FlagOverflow
+	FlagNegtive
+)
+
 type CPU struct {
 	totalCycles  uint64
 	durPerCycles time.Duration
 
 	NMI chan bool // edge trigger
 	IRQ bool      // level trigger
+	Mem Mem
 
 	irqVec uint16
 	nmiVec uint16
@@ -25,25 +37,22 @@ type CPU struct {
 }
 
 func (c *CPU) Run(m Mem) (err error) {
-
+	c.Mem = m
 	var (
 		op     uint8
-		cycles uint8
-		ins    ins.Ins
+		cycles time.Duration
+		i      ins.Ins
 	)
 
 	for {
-		op, cycles, err = m.ReadByte(c.PC)
-		if err != nil {
-			return
-		}
-		ins = ins.Table[op]
-		if ins.Cycles == 0 {
+		op = m.ReadByte(c.PC)
+		i = ins.Table[op]
+		if i.Cycles == 0 {
 			return c.Fault("invalid Op code")
 		}
-		cycles += ins.Cycles
-		cycles += insHandler[op](ins, m)
-		time.Sleep(time.Duration(cycles) * c.durPerCycles)
+		cycles += i.Cycles
+		cycles += c.insHandler(i)
+		time.Sleep(cycles * c.durPerCycles)
 
 		select {
 		case <-c.NMI:
@@ -52,9 +61,9 @@ func (c *CPU) Run(m Mem) (err error) {
 		default:
 		}
 
-		if c.IRQ && c.PS&FlagDisableIRQ == 0 {
+		if c.IRQ && c.PS&FlagIRQDisable == 0 {
 			c.PC = c.irqVec
-			c.PS |= FlagDisableIRQ
+			c.PS |= FlagIRQDisable
 		}
 	}
 
@@ -64,10 +73,23 @@ func (c *CPU) Fault(s string) error {
 	return errors.New("FAULT:" + s)
 }
 
+func (c *CPU) SetZN(x uint8) {
+	if x == 0 {
+		c.PS |= FlagZero
+	} else {
+		c.PS &= ^FlagZero
+	}
+	if x&FlagNegtive == 0 {
+		c.PS &= ^FlagNegtive
+	} else {
+		c.PS |= FlagNegtive
+	}
+}
+
 // simple version of {bytes,bufio}.Reader
 type Mem interface {
-	ReadByte(pc uint16) (b uint8, cycles int64, err error)
-	ReadWord(pc uint16) (n uint16, cycles int64, err error)
-	WriteByte(b uint8, pc uint16) (cycles int64, err error)
-	WriteWord(n uint16, pc uint16) (cycles int64, err error)
+	ReadByte(pc uint16) (b uint8)
+	ReadWord(pc uint16) (n uint16)
+	WriteByte(pc uint16, b uint8)
+	WriteWord(pc uint16, n uint16)
 }
