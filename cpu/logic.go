@@ -165,7 +165,6 @@ func (c *CPU) insHandler(i ins.Ins) (cycles time.Duration) {
 	case ins.INY:
 		c.RY++
 		c.setZN(c.RY)
-
 	case ins.DEX:
 		c.RX--
 		c.setZN(c.RX)
