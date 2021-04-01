@@ -7,6 +7,9 @@ import (
 
 func (c *CPU) insHandler(i ins.Ins) (cycles time.Duration) {
 
+	var addr uint16
+	var oper uint8
+
 	switch i.Name {
 	default:
 		panic("invalid name")
@@ -22,15 +25,18 @@ func (c *CPU) insHandler(i ins.Ins) (cycles time.Duration) {
 		c.RY, cycles = c.getOper(i.Mode)
 		c.setZN(c.RY)
 	case ins.STA:
-		cycles = c.setByte(i.Mode, c.AC)
+		addr, cycles = c.getAddr(i.Mode)
+		c.Mem.WriteByte(addr, c.AC)
 	case ins.STX:
-		cycles = c.setByte(i.Mode, c.RX)
+		addr, cycles = c.getAddr(i.Mode)
+		c.Mem.WriteByte(addr, c.RX)
 	case ins.STY:
-		cycles = c.setByte(i.Mode, c.RY)
+		addr, cycles = c.getAddr(i.Mode)
+		c.Mem.WriteByte(addr, c.RY)
 
 	// Stack Operations
 	case ins.TSX:
-		c.RX = uint8(c.SP)
+		c.RX = uint8(c.SP & 0xff)
 		c.setZN(c.RX)
 	case ins.TXS:
 		c.SP = uint16(c.RX)
@@ -61,22 +67,18 @@ func (c *CPU) insHandler(i ins.Ins) (cycles time.Duration) {
 
 	// Logical
 	case ins.AND:
-		var oper uint8
 		oper, cycles = c.getOper(i.Mode)
 		c.AC &= oper
 		c.setZN(c.AC)
 	case ins.ORA:
-		var oper uint8
 		oper, cycles = c.getOper(i.Mode)
 		c.AC |= oper
 		c.setZN(c.AC)
 	case ins.EOR:
-		var oper uint8
 		oper, cycles = c.getOper(i.Mode)
 		c.AC ^= oper
 		c.setZN(c.AC)
 	case ins.BIT:
-		var oper uint8
 		oper, cycles = c.getOper(i.Mode)
 		value := c.AC & oper
 		c.setZN(value)
@@ -86,14 +88,132 @@ func (c *CPU) insHandler(i ins.Ins) (cycles time.Duration) {
 		} else {
 			c.PS &= ^FlagOverflow
 		}
-	}
-	return
-}
 
-func (c *CPU) setByte(mode ins.Mode, value uint8) (cycles time.Duration) {
-	var addr uint16
-	addr, cycles = c.getAddr(mode)
-	c.Mem.WriteByte(addr, value)
+	// Arithmetic
+	case ins.ADC, ins.SBC:
+		oper, cycles = c.getOper(i.Mode)
+		if i.Name == ins.SBC {
+			oper ^= 0
+		}
+
+		if c.PS&FlagDecimalMode != 0 {
+			panic("no decimal mode")
+			return
+		}
+
+		sameSigned := (c.AC^oper)&FlagNegtive == 0
+		sum := uint16(c.AC)
+		sum += uint16(oper)
+		if c.PS&FlagCarry != 0 {
+			sum += 1
+		}
+		c.AC = uint8(sum & 0xff)
+		c.setZN(c.AC)
+		if sum > 0xff {
+			c.PS |= FlagCarry
+		} else {
+			c.PS &= ^FlagCarry
+		}
+
+		if sameSigned && ((c.AC^oper)&FlagNegtive != 0) {
+			c.PS |= FlagOverflow
+		} else {
+			c.PS &= ^FlagOverflow
+		}
+	case ins.CMP:
+		oper, cycles = c.getOper(i.Mode)
+		if c.AC > oper {
+			c.PS |= FlagCarry
+		} else {
+			c.PS &= ^FlagCarry
+		}
+		v := c.AC - oper
+		c.setZN(v)
+	case ins.CPX:
+		oper, cycles = c.getOper(i.Mode)
+		if c.RX > oper {
+			c.PS |= FlagCarry
+		} else {
+			c.PS &= ^FlagCarry
+		}
+		v := c.RX - oper
+		c.setZN(v)
+	case ins.CPY:
+		oper, cycles = c.getOper(i.Mode)
+		if c.RY > oper {
+			c.PS |= FlagCarry
+		} else {
+			c.PS &= ^FlagCarry
+		}
+		v := c.RY - oper
+		c.setZN(v)
+
+	// Increments & Decrements
+	case ins.INC, ins.DEC:
+		addr, cycles = c.getAddr(i.Mode)
+		oper := c.Mem.ReadByte(addr)
+		if i.Name == ins.DEC {
+			oper -= 1
+		} else {
+			oper += 1
+		}
+		c.setZN(oper)
+		c.Mem.WriteByte(addr, oper)
+	case ins.INX:
+		c.RX++
+		c.setZN(c.RX)
+	case ins.INY:
+		c.RY++
+		c.setZN(c.RY)
+
+	case ins.DEX:
+		c.RX--
+		c.setZN(c.RX)
+	case ins.DEY:
+		c.RY--
+		c.setZN(c.RY)
+
+	// Shifts
+	case ins.ASL:
+	case ins.LSR:
+	case ins.ROL:
+	case ins.ROR:
+
+	// Jumps & Calls
+	case ins.JMP:
+	case ins.JSR:
+	case ins.RTS:
+
+	// Branches
+	case ins.BCC:
+	case ins.BCS:
+	case ins.BEQ:
+	case ins.BMI:
+	case ins.BNE:
+	case ins.BPL:
+	case ins.BVC:
+	case ins.BVS:
+
+	// Status Flag Changes
+	case ins.CLC:
+		c.PS &= ^FlagCarry
+	case ins.CLD:
+		c.PS &= ^FlagDecimalMode
+	case ins.CLI:
+		c.PS &= ^FlagIRQDisable
+	case ins.CLV:
+		c.PS &= ^FlagOverflow
+	case ins.SEC:
+		c.PS |= FlagCarry
+	case ins.SED:
+		c.PS |= FlagDecimalMode
+	case ins.SEI:
+		c.PS |= FlagIRQDisable
+
+	// System Functions
+	case ins.BRK:
+	case ins.RTI:
+	}
 	return
 }
 
