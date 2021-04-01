@@ -12,7 +12,7 @@ const (
 	FlagIRQDisable
 	FlagDecimalMode
 	FlagBreak
-	FlagBreak2
+	FlagUnused
 	FlagOverflow
 	FlagNegtive
 )
@@ -73,7 +73,7 @@ func (c *CPU) Fault(s string) error {
 	return errors.New("FAULT:" + s)
 }
 
-func (c *CPU) SetZN(x uint8) {
+func (c *CPU) setZN(x uint8) {
 	if x == 0 {
 		c.PS |= FlagZero
 	} else {
