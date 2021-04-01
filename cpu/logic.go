@@ -174,24 +174,129 @@ func (c *CPU) insHandler(i ins.Ins) (cycles time.Duration) {
 
 	// Shifts
 	case ins.ASL:
+		if i.Mode == ins.Accumulator {
+			if c.AC&(1<<7) != 0 {
+				c.PS |= FlagCarry
+			} else {
+				c.PS &= ^FlagCarry
+			}
+			c.AC <<= 1
+			c.setZN(c.AC)
+			return
+		}
+		addr, cycles = c.getAddr(i.Mode)
+		oper = c.Mem.ReadByte(addr)
+		if oper&(1<<7) != 0 {
+			c.PS |= FlagCarry
+		} else {
+			c.PS &= ^FlagCarry
+		}
+		oper <<= 1
+		c.setZN(oper)
+		c.Mem.WriteByte(addr, oper)
 	case ins.LSR:
+		if i.Mode == ins.Accumulator {
+			if c.AC&1 != 0 {
+				c.PS |= FlagCarry
+			} else {
+				c.PS &= ^FlagCarry
+			}
+			c.AC >>= 1
+			c.setZN(c.AC)
+			return
+		}
+		addr, cycles = c.getAddr(i.Mode)
+		oper = c.Mem.ReadByte(addr)
+		if oper&1 != 0 {
+			c.PS |= FlagCarry
+		} else {
+			c.PS &= ^FlagCarry
+		}
+		oper >>= 1
+		c.setZN(oper)
+		c.Mem.WriteByte(addr, oper)
 	case ins.ROL:
+		var more uint8
+		if i.Mode == ins.Accumulator {
+			if c.AC&(1<<7) != 0 {
+				c.PS |= FlagCarry
+				more = 1
+			} else {
+				c.PS &= ^FlagCarry
+			}
+			c.AC <<= 1
+			c.AC |= more
+			c.setZN(c.AC)
+			return
+		}
+		addr, cycles = c.getAddr(i.Mode)
+		oper = c.Mem.ReadByte(addr)
+		if oper&(1<<7) != 0 {
+			more = 1
+			c.PS |= FlagCarry
+		} else {
+			c.PS &= ^FlagCarry
+		}
+		oper <<= 1
+		oper |= more
+		c.setZN(oper)
+		c.Mem.WriteByte(addr, oper)
 	case ins.ROR:
+		var more uint8
+		if i.Mode == ins.Accumulator {
+			if c.AC&1 != 0 {
+				c.PS |= FlagCarry
+				more |= 1 << 7
+			} else {
+				c.PS &= ^FlagCarry
+			}
+			c.AC >>= 1
+			c.AC |= more
+			c.setZN(c.AC)
+			return
+		}
+		addr, cycles = c.getAddr(i.Mode)
+		oper = c.Mem.ReadByte(addr)
+		if oper&1 != 0 {
+			c.PS |= FlagCarry
+			more |= 1 << 7
+		} else {
+			c.PS &= ^FlagCarry
+		}
+		oper >>= 1
+		oper |= more
+		c.setZN(oper)
+		c.Mem.WriteByte(addr, oper)
 
 	// Jumps & Calls
 	case ins.JMP:
+		addr, cycles = c.getAddr(i.Mode)
+		c.PC = addr
 	case ins.JSR:
+		addr, cycles = c.getAddr(i.Mode)
+		c.pushWordToStack(c.PC - 1)
+		c.PC = addr
 	case ins.RTS:
+		addr = c.popWordFromStack()
+		c.PC = addr + 1
 
 	// Branches
 	case ins.BCC:
+		cycles = c.BranchIf(FlagCarry, false)
 	case ins.BCS:
+		cycles = c.BranchIf(FlagCarry, true)
 	case ins.BEQ:
+		cycles = c.BranchIf(FlagZero, true)
 	case ins.BMI:
+		cycles = c.BranchIf(FlagNegtive, true)
 	case ins.BNE:
+		cycles = c.BranchIf(FlagZero, false)
 	case ins.BPL:
+		cycles = c.BranchIf(FlagNegtive, false)
 	case ins.BVC:
+		cycles = c.BranchIf(FlagOverflow, false)
 	case ins.BVS:
+		cycles = c.BranchIf(FlagOverflow, true)
 
 	// Status Flag Changes
 	case ins.CLC:
@@ -211,7 +316,33 @@ func (c *CPU) insHandler(i ins.Ins) (cycles time.Duration) {
 
 	// System Functions
 	case ins.BRK:
+		c.pushWordToStack(c.PC + 1)
+		c.pushByteToStack(c.PS)
+		c.PC = c.Mem.ReadWord(0xfffe)
+		c.PS |= FlagBreak | FlagIRQDisable
 	case ins.RTI:
+		c.PS = c.popByteFromStack()
+		c.PC = c.popWordFromStack()
+	}
+	return
+}
+
+func (c *CPU) BranchIf(flag uint8, set bool) (cycles time.Duration) {
+	if flag&c.PS != 0 == set {
+		oper := c.Mem.ReadByte(c.PC + 1)
+		cycles = 1
+
+		if oper&1<<7 == 0 {
+			c.PC += uint16(oper)
+		} else {
+			c.PC -= uint16(0xff^oper) - 1
+		}
+
+		old := c.PC
+		// cross page
+		if (old^c.PC)>>8 != 0 {
+			cycles += 1
+		}
 	}
 	return
 }

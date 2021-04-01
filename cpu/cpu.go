@@ -2,6 +2,7 @@ package cpu
 
 import (
 	"errors"
+	"fmt"
 	"go6502/ins"
 	"time"
 )
@@ -36,7 +37,29 @@ type CPU struct {
 	SP uint16
 }
 
+func New() *CPU {
+	return &CPU{
+		NMI:    make(chan bool),
+		irqVec: 0xfffe,
+		nmiVec: 0xfffd,
+		PC:     0x3000,
+		SP:     0x0000,
+	}
+}
+
+func (c *CPU) String() string {
+	return fmt.Sprintf("%02X", c.PC)
+}
+
 func (c *CPU) Run(m Mem) (err error) {
+
+	defer func() {
+		err := recover()
+		if err != nil {
+			fmt.Println(err, c.String())
+		}
+	}()
+
 	c.Mem = m
 	var (
 		op     uint8
@@ -45,14 +68,20 @@ func (c *CPU) Run(m Mem) (err error) {
 	)
 
 	for {
+		prev := c.PC
 		op = m.ReadByte(c.PC)
 		i = ins.Table[op]
 		if i.Cycles == 0 {
 			return c.Fault("invalid Op code")
 		}
-		cycles += i.Cycles
+		cycles = i.Cycles
 		cycles += c.insHandler(i)
 		time.Sleep(cycles * c.durPerCycles)
+
+		// the instruction didn't change PC
+		if c.PC == prev {
+			c.PC += uint16(i.Bytes)
+		}
 
 		select {
 		case <-c.NMI:
