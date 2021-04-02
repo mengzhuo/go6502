@@ -122,7 +122,7 @@ func (c *CPU) insHandler(i ins.Ins) (cycles time.Duration) {
 		}
 	case ins.CMP:
 		oper, cycles = c.getOper(i.Mode)
-		if c.AC > oper {
+		if c.AC >= oper {
 			c.PS |= FlagCarry
 		} else {
 			c.PS &= ^FlagCarry
@@ -131,7 +131,7 @@ func (c *CPU) insHandler(i ins.Ins) (cycles time.Duration) {
 		c.setZN(v)
 	case ins.CPX:
 		oper, cycles = c.getOper(i.Mode)
-		if c.RX > oper {
+		if c.RX >= oper {
 			c.PS |= FlagCarry
 		} else {
 			c.PS &= ^FlagCarry
@@ -140,7 +140,7 @@ func (c *CPU) insHandler(i ins.Ins) (cycles time.Duration) {
 		c.setZN(v)
 	case ins.CPY:
 		oper, cycles = c.getOper(i.Mode)
-		if c.RY > oper {
+		if c.RY >= oper {
 			c.PS |= FlagCarry
 		} else {
 			c.PS &= ^FlagCarry
@@ -282,21 +282,21 @@ func (c *CPU) insHandler(i ins.Ins) (cycles time.Duration) {
 
 	// Branches
 	case ins.BCC:
-		cycles = c.BranchIf(FlagCarry, false)
+		cycles = c.BranchIf(i, FlagCarry, false)
 	case ins.BCS:
-		cycles = c.BranchIf(FlagCarry, true)
+		cycles = c.BranchIf(i, FlagCarry, true)
 	case ins.BEQ:
-		cycles = c.BranchIf(FlagZero, true)
+		cycles = c.BranchIf(i, FlagZero, true)
 	case ins.BMI:
-		cycles = c.BranchIf(FlagNegtive, true)
+		cycles = c.BranchIf(i, FlagNegtive, true)
 	case ins.BNE:
-		cycles = c.BranchIf(FlagZero, false)
+		cycles = c.BranchIf(i, FlagZero, false)
 	case ins.BPL:
-		cycles = c.BranchIf(FlagNegtive, false)
+		cycles = c.BranchIf(i, FlagNegtive, false)
 	case ins.BVC:
-		cycles = c.BranchIf(FlagOverflow, false)
+		cycles = c.BranchIf(i, FlagOverflow, false)
 	case ins.BVS:
-		cycles = c.BranchIf(FlagOverflow, true)
+		cycles = c.BranchIf(i, FlagOverflow, true)
 
 	// Status Flag Changes
 	case ins.CLC:
@@ -327,22 +327,32 @@ func (c *CPU) insHandler(i ins.Ins) (cycles time.Duration) {
 	return
 }
 
-func (c *CPU) BranchIf(flag uint8, set bool) (cycles time.Duration) {
-	if flag&c.PS != 0 == set {
-		oper := c.Mem.ReadByte(c.PC + 1)
+func (c *CPU) BranchIf(i ins.Ins, flag uint8, set bool) (cycles time.Duration) {
+	var ok bool
+	if set {
+		ok = flag&c.PS != 0
+	} else {
+		ok = flag&c.PS == 0
+	}
+
+	if !ok {
+		c.PC += uint16(i.Bytes)
 		cycles = 1
+		return
+	}
 
-		if oper&1<<7 == 0 {
-			c.PC += uint16(oper)
-		} else {
-			c.PC -= uint16(0xff^oper) - 1
-		}
+	oper := c.Mem.ReadByte(c.PC + 1)
+	cycles = 1
+	if oper&FlagNegtive == 0 {
+		c.PC += uint16(oper) + 2
+	} else {
+		c.PC -= uint16(0xff^oper) - 1
+	}
 
-		old := c.PC
-		// cross page
-		if (old^c.PC)>>8 != 0 {
-			cycles += 1
-		}
+	old := c.PC
+	// cross page
+	if (old^c.PC)>>8 != 0 {
+		cycles += 1
 	}
 	return
 }

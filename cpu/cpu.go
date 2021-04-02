@@ -8,7 +8,14 @@ import (
 )
 
 const (
-	FlagCarry uint8 = iota
+	debug = true
+	pss   = "CZIDB-VN"
+
+	targetCycle = 500000
+)
+
+const (
+	FlagCarry uint8 = 1 << iota
 	FlagZero
 	FlagIRQDisable
 	FlagDecimalMode
@@ -42,13 +49,21 @@ func New() *CPU {
 		NMI:    make(chan bool),
 		irqVec: 0xfffe,
 		nmiVec: 0xfffd,
-		PC:     0x3000,
+		PC:     0xfffe,
 		SP:     0x0000,
 	}
 }
 
 func (c *CPU) String() string {
-	return fmt.Sprintf("%02X", c.PC)
+	var t []byte
+	for i := 0; i < 8; i++ {
+		if c.PS&(1<<i) != 0 {
+			t = append(t, pss[i])
+		}
+	}
+	return fmt.Sprintf("A:%02X X:%02X Y:%02X SP:%04X PC:%04X PS:%s",
+		c.AC, c.RX, c.RY,
+		c.SP|0x100, c.PC, t)
 }
 
 func (c *CPU) Run(m Mem) (err error) {
@@ -65,21 +80,37 @@ func (c *CPU) Run(m Mem) (err error) {
 		op     uint8
 		cycles time.Duration
 		i      ins.Ins
+		total  time.Duration
+		prev   uint16
 	)
 
 	for {
-		prev := c.PC
+		prev = c.PC
 		op = m.ReadByte(c.PC)
 		i = ins.Table[op]
 		if i.Cycles == 0 {
 			return c.Fault("invalid Op code")
 		}
+		if debug {
+			fmt.Println(c, i)
+		}
 		cycles = i.Cycles
 		cycles += c.insHandler(i)
+		total += cycles
 		time.Sleep(cycles * c.durPerCycles)
+		if debug && total > targetCycle {
+			break
+		}
 
 		// the instruction didn't change PC
-		if c.PC == prev {
+		switch i.Name {
+		case ins.BCC, ins.BCS, ins.BEQ, ins.BMI,
+			ins.BNE, ins.BPL, ins.BVC, ins.BVS, ins.JMP,
+			ins.JSR, ins.BRK, ins.RTI, ins.RTS:
+			if c.PC == prev {
+				return c.Fault("infinite loop")
+			}
+		default:
 			c.PC += uint16(i.Bytes)
 		}
 
@@ -95,7 +126,7 @@ func (c *CPU) Run(m Mem) (err error) {
 			c.PS |= FlagIRQDisable
 		}
 	}
-
+	return
 }
 
 func (c *CPU) Fault(s string) error {

@@ -1,20 +1,19 @@
 package cpu
 
 import (
-	"archive/zip"
 	"io/ioutil"
+	"os"
 	"testing"
 )
 
 func TestBinFunction(t *testing.T) {
-	f, err := zip.OpenReader("testdata/6502_functional_test.bin.zip")
+	f, err := os.Open("testdata/6502_functional_test.bin")
 	if err != nil {
 		t.Skip("no raw data", err)
 	}
 	defer f.Close()
 
-	zf, err := f.File[0].Open()
-	data, err := ioutil.ReadAll(zf)
+	data, err := ioutil.ReadAll(f)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -27,6 +26,6 @@ func TestBinFunction(t *testing.T) {
 	c.PC = 0x400
 	err = c.Run(m)
 	if err != nil {
-		t.Fatal(err, n)
+		t.Fatal(err, c)
 	}
 }
