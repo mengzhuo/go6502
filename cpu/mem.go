@@ -1,6 +1,6 @@
 package cpu
 
-type SimpleMem [0xFFFF]byte
+type SimpleMem [65536]byte
 
 func (s *SimpleMem) ReadByte(pc uint16) (b uint8) {
 	return s[pc]

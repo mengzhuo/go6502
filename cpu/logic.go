@@ -1,7 +1,6 @@
 package cpu
 
 import (
-	"fmt"
 	"go6502/ins"
 	"time"
 )
@@ -321,8 +320,6 @@ func (c *CPU) insHandler(i ins.Ins) (cycles time.Duration) {
 		c.pushByteToStack(c.PS)
 		c.PC = c.Mem.ReadWord(c.irqVec)
 		c.PS |= FlagBreak | FlagIRQDisable
-		fmt.Println("BRK", c)
-		panic("ok")
 	case ins.RTI:
 		c.PS = c.popByteFromStack()
 		c.PC = c.popWordFromStack()

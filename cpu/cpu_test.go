@@ -19,7 +19,7 @@ func TestBinFunction(t *testing.T) {
 	}
 	m := &SimpleMem{}
 	n := copy(m[:], data)
-	if err != nil || n != 0xffff {
+	if err != nil || n != 0x10000 {
 		t.Fatal(err, n)
 	}
 	c := New()

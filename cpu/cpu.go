@@ -71,7 +71,7 @@ func (c *CPU) Run(m Mem) (err error) {
 	defer func() {
 		err := recover()
 		if err != nil {
-			fmt.Println(err, c.String())
+			fmt.Println(err, "\n", c.String())
 		}
 	}()
 
@@ -98,6 +98,7 @@ func (c *CPU) Run(m Mem) (err error) {
 		cycles += c.insHandler(i)
 		total += cycles
 		time.Sleep(cycles * c.durPerCycles)
+
 		if debug && total > targetCycle {
 			break
 		}
