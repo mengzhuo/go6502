@@ -1,6 +1,7 @@
 package cpu
 
 import (
+	"fmt"
 	"go6502/ins"
 	"time"
 )
@@ -274,7 +275,7 @@ func (c *CPU) insHandler(i ins.Ins) (cycles time.Duration) {
 		c.PC = addr
 	case ins.JSR:
 		addr, cycles = c.getAddr(i.Mode)
-		c.pushWordToStack(c.PC - 1)
+		c.pushWordToStack(c.PC + 2)
 		c.PC = addr
 	case ins.RTS:
 		addr = c.popWordFromStack()
@@ -318,8 +319,10 @@ func (c *CPU) insHandler(i ins.Ins) (cycles time.Duration) {
 	case ins.BRK:
 		c.pushWordToStack(c.PC + 1)
 		c.pushByteToStack(c.PS)
-		c.PC = c.Mem.ReadWord(0xfffe)
+		c.PC = c.Mem.ReadWord(c.irqVec)
 		c.PS |= FlagBreak | FlagIRQDisable
+		fmt.Println("BRK", c)
+		panic("ok")
 	case ins.RTI:
 		c.PS = c.popByteFromStack()
 		c.PC = c.popWordFromStack()
@@ -360,6 +363,8 @@ func (c *CPU) BranchIf(i ins.Ins, flag uint8, set bool) (cycles time.Duration) {
 func (c *CPU) getAddr(mode ins.Mode) (addr uint16, cycles time.Duration) {
 	m := c.Mem
 	switch mode {
+	default:
+		panic("no handler")
 	case ins.Immediate:
 		addr = c.PC + 1
 	case ins.ZeroPage:
@@ -386,6 +391,9 @@ func (c *CPU) getAddr(mode ins.Mode) (addr uint16, cycles time.Duration) {
 			cycles += 1
 		}
 		addr = addry
+	case ins.Indirect:
+		addr = m.ReadWord(c.PC + 1)
+		addr = m.ReadWord(addr)
 	case ins.IndirectX:
 		zaddr := m.ReadByte(c.PC + 1)
 		addr = uint16(c.RX + zaddr)

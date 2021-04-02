@@ -47,9 +47,9 @@ type CPU struct {
 func New() *CPU {
 	return &CPU{
 		NMI:    make(chan bool),
-		irqVec: 0xfffe,
+		irqVec: 0xFFFE,
 		nmiVec: 0xfffd,
-		PC:     0xfffe,
+		PC:     0xFFFE,
 		SP:     0x0000,
 	}
 }
