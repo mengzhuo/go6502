@@ -92,8 +92,11 @@ func (c *CPU) Run(m Mem) (err error) {
 		if debug {
 			fmt.Println(c, i)
 		}
-		cycles = i.Cycles
-		cycles += c.insHandler(i)
+		cycles, err = c.insHandler(i)
+		if err != nil {
+			return
+		}
+		cycles += i.Cycles
 		c.totalCycles += cycles
 		time.Sleep(cycles * c.durPerCycles)
 

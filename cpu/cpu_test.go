@@ -33,7 +33,10 @@ func TestBinFunction(t *testing.T) {
 	c := New()
 	c.PC = 0x400
 	err = c.Run(m)
-	if err != nil {
+	if err == nil {
+		t.Fatal(err, c)
+	}
+	if c.PC != 0x3472 {
 		t.Fatal(err, c)
 	}
 }

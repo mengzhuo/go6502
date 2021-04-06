@@ -1,18 +1,20 @@
 package cpu
 
 import (
+	"fmt"
 	"go6502/ins"
 	"time"
 )
 
-func (c *CPU) insHandler(i ins.Ins) (cycles time.Duration) {
+func (c *CPU) insHandler(i ins.Ins) (cycles time.Duration, err error) {
 
 	var addr uint16
 	var oper uint8
 
 	switch i.Name {
 	default:
-		panic("invalid name")
+		err = fmt.Errorf("invalid name")
+		return
 	case ins.NOP:
 		return
 	case ins.LDA:
@@ -107,7 +109,7 @@ func (c *CPU) insHandler(i ins.Ins) (cycles time.Duration) {
 		}
 
 		if c.PS&FlagDecimalMode != 0 {
-			panic("no decimal mode")
+			err = fmt.Errorf("no decimal mode")
 			return
 		}
 
