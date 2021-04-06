@@ -36,10 +36,10 @@ func (c *CPU) insHandler(i ins.Ins) (cycles time.Duration) {
 
 	// Stack Operations
 	case ins.TSX:
-		c.RX = uint8(c.SP & 0xff)
+		c.RX = c.sp
 		c.setZN(c.RX)
 	case ins.TXS:
-		c.SP = uint16(c.RX)
+		c.sp = c.RX
 	case ins.PHA:
 		c.pushByteToStack(c.AC)
 	case ins.PHP:
@@ -316,12 +316,12 @@ func (c *CPU) insHandler(i ins.Ins) (cycles time.Duration) {
 
 	// System Functions
 	case ins.BRK:
-		c.pushWordToStack(c.PC + 1)
-		c.pushByteToStack(c.PS)
+		c.pushWordToStack(c.PC + 2)
+		c.pushByteToStack(c.PS | FlagBreak | FlagUnused)
 		c.PC = c.Mem.ReadWord(c.irqVec)
 		c.PS |= FlagBreak | FlagIRQDisable
 	case ins.RTI:
-		c.PS = c.popByteFromStack()
+		c.PS = c.popByteFromStack() & ^(FlagBreak | FlagUnused)
 		c.PC = c.popWordFromStack()
 	}
 	return
@@ -367,11 +367,13 @@ func (c *CPU) getAddr(mode ins.Mode) (addr uint16, cycles time.Duration) {
 	case ins.ZeroPage:
 		addr = uint16(m.ReadByte(c.PC + 1))
 	case ins.ZeroPageX:
-		addr = uint16(m.ReadByte(c.PC + 1))
-		addr += uint16(c.RX)
+		// zero page should be wrapped
+		zp := m.ReadByte(c.PC + 1)
+		addr = uint16(c.RX + zp)
 	case ins.ZeroPageY:
-		addr = uint16(m.ReadByte(c.PC + 1))
-		addr += uint16(c.RY)
+		// zero page should be wrapped
+		zp := m.ReadByte(c.PC + 1)
+		addr = uint16(c.RY + zp)
 	case ins.Absolute:
 		addr = m.ReadWord(c.PC + 1)
 	case ins.AbsoluteX:
@@ -417,15 +419,13 @@ func (c *CPU) getOper(mode ins.Mode) (oper uint8, cycles time.Duration) {
 }
 
 func (c *CPU) pushByteToStack(value uint8) {
-	addr := c.SP | 0x100
-	c.Mem.WriteByte(addr, value)
-	c.SP -= 1
+	c.Mem.WriteByte(c.SP(), value)
+	c.sp -= 1
 }
 
 func (c *CPU) popByteFromStack() uint8 {
-	c.SP += 1
-	addr := c.SP | 0x100
-	return c.Mem.ReadByte(addr)
+	c.sp += 1
+	return c.Mem.ReadByte(c.SP())
 }
 
 func (c *CPU) pushWordToStack(v uint16) {
@@ -434,7 +434,7 @@ func (c *CPU) pushWordToStack(v uint16) {
 }
 
 func (c *CPU) popWordFromStack() (r uint16) {
-	r = c.Mem.ReadWord((c.SP | 0x100) + 1)
-	c.SP += 2
+	r = c.Mem.ReadWord(c.SP() + 1)
+	c.sp += 2
 	return
 }

@@ -26,7 +26,7 @@ const (
 )
 
 type CPU struct {
-	totalCycles  uint64
+	totalCycles  time.Duration
 	durPerCycles time.Duration
 
 	NMI chan bool // edge trigger
@@ -36,22 +36,26 @@ type CPU struct {
 	irqVec uint16
 	nmiVec uint16
 
+	PC uint16
 	AC uint8
 	RX uint8
 	RY uint8
 	PS uint8
-	PC uint16
-	SP uint16
+	sp uint8
 }
 
 func New() *CPU {
 	return &CPU{
+		sp:     0xff,
 		NMI:    make(chan bool),
 		irqVec: 0xFFFE,
 		nmiVec: 0xfffd,
 		PC:     0xFFFE,
-		SP:     0x0000,
 	}
+}
+
+func (c *CPU) SP() uint16 {
+	return uint16(c.sp) | uint16(0x100)
 }
 
 func (c *CPU) String() string {
@@ -61,9 +65,10 @@ func (c *CPU) String() string {
 			t = append(t, pss[i])
 		}
 	}
-	return fmt.Sprintf("A:%02X X:%02X Y:%02X SP:%04X PC:%04X PS:%s",
+	return fmt.Sprintf("[%d]A:%02X X:%02X Y:%02X SP:%04X PC:%04X PS:%s",
+		c.totalCycles,
 		c.AC, c.RX, c.RY,
-		c.SP|0x100, c.PC, t)
+		c.SP(), c.PC, t)
 }
 
 func (c *CPU) Run(m Mem) (err error) {
@@ -89,14 +94,14 @@ func (c *CPU) Run(m Mem) (err error) {
 		op = m.ReadByte(c.PC)
 		i = ins.Table[op]
 		if i.Cycles == 0 {
-			return c.Fault("invalid Op code")
+			return c.Fault("invalid op code")
 		}
 		if debug {
 			fmt.Println(c, i)
 		}
 		cycles = i.Cycles
 		cycles += c.insHandler(i)
-		total += cycles
+		c.totalCycles += cycles
 		time.Sleep(cycles * c.durPerCycles)
 
 		if debug && total > targetCycle {
