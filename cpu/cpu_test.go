@@ -1,19 +1,27 @@
 package cpu
 
 import (
+	"compress/gzip"
 	"io/ioutil"
 	"os"
 	"testing"
 )
 
 func TestBinFunction(t *testing.T) {
-	f, err := os.Open("testdata/6502_functional_test.bin")
+	f, err := os.Open("testdata/6502_functional_test.bin.gz")
 	if err != nil {
 		t.Skip("no raw data", err)
 	}
 	defer f.Close()
 
-	data, err := ioutil.ReadAll(f)
+	zr, err := gzip.NewReader(f)
+	if err != nil {
+		t.Fatal("gzip", err)
+	}
+	defer zr.Close()
+	zr.Multistream(false)
+
+	data, err := ioutil.ReadAll(zr)
 	if err != nil {
 		t.Fatal(err)
 	}

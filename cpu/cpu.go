@@ -74,13 +74,6 @@ func (c *CPU) String() string {
 
 func (c *CPU) Run(m Mem) (err error) {
 
-	defer func() {
-		err := recover()
-		if err != nil {
-			fmt.Println(err, "\n", c.String())
-		}
-	}()
-
 	c.Mem = m
 	var (
 		op     uint8
