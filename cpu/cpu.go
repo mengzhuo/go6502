@@ -8,10 +8,11 @@ import (
 )
 
 const (
-	debug = true
+	debug = false
 	pss   = "CZIDB-VN"
 
-	targetCycle = 500000
+	targetCycle = 98321791
+	targetPC    = 0x3469
 )
 
 const (
@@ -85,7 +86,6 @@ func (c *CPU) Run(m Mem) (err error) {
 		op     uint8
 		cycles time.Duration
 		i      ins.Ins
-		total  time.Duration
 		prev   uint16
 	)
 
@@ -104,8 +104,14 @@ func (c *CPU) Run(m Mem) (err error) {
 		c.totalCycles += cycles
 		time.Sleep(cycles * c.durPerCycles)
 
-		if debug && total > targetCycle {
-			break
+		if debug {
+			if c.totalCycles > targetCycle {
+				break
+			}
+
+			if c.PC == targetPC {
+				break
+			}
 		}
 
 		// the instruction didn't change PC

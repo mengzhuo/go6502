@@ -80,10 +80,20 @@ func (c *CPU) insHandler(i ins.Ins) (cycles time.Duration) {
 		c.setZN(c.AC)
 	case ins.BIT:
 		oper, cycles = c.getOper(i.Mode)
-		value := c.AC & oper
-		c.setZN(value)
 
-		if value&FlagOverflow != 0 {
+		if c.AC&oper == 0 {
+			c.PS |= FlagZero
+		} else {
+			c.PS &= ^FlagZero
+		}
+
+		if oper&FlagNegtive != 0 {
+			c.PS |= FlagNegtive
+		} else {
+			c.PS &= ^FlagNegtive
+		}
+
+		if oper&FlagOverflow != 0 {
 			c.PS |= FlagOverflow
 		} else {
 			c.PS &= ^FlagOverflow
@@ -93,7 +103,7 @@ func (c *CPU) insHandler(i ins.Ins) (cycles time.Duration) {
 	case ins.ADC, ins.SBC:
 		oper, cycles = c.getOper(i.Mode)
 		if i.Name == ins.SBC {
-			oper ^= 0
+			oper = ^oper
 		}
 
 		if c.PS&FlagDecimalMode != 0 {
@@ -215,56 +225,80 @@ func (c *CPU) insHandler(i ins.Ins) (cycles time.Duration) {
 		oper >>= 1
 		c.setZN(oper)
 		c.Mem.WriteByte(addr, oper)
+
 	case ins.ROL:
-		var more uint8
+		carry := false
 		if i.Mode == ins.Accumulator {
-			if c.AC&(1<<7) != 0 {
+
+			if c.AC&FlagNegtive != 0 {
+				carry = true
+			}
+			c.AC <<= 1
+			if c.PS&FlagCarry != 0 {
+				c.AC |= 1
+			}
+			if carry {
 				c.PS |= FlagCarry
-				more = 1
 			} else {
 				c.PS &= ^FlagCarry
 			}
-			c.AC <<= 1
-			c.AC |= more
+
 			c.setZN(c.AC)
 			return
 		}
+
 		addr, cycles = c.getAddr(i.Mode)
 		oper = c.Mem.ReadByte(addr)
-		if oper&(1<<7) != 0 {
-			more = 1
+		if oper&FlagNegtive != 0 {
+			carry = true
+		}
+		oper <<= 1
+		if c.PS&FlagCarry != 0 {
+			oper |= 1
+		}
+		if carry {
 			c.PS |= FlagCarry
 		} else {
 			c.PS &= ^FlagCarry
 		}
-		oper <<= 1
-		oper |= more
 		c.setZN(oper)
 		c.Mem.WriteByte(addr, oper)
+
 	case ins.ROR:
-		var more uint8
+		carry := false
 		if i.Mode == ins.Accumulator {
 			if c.AC&1 != 0 {
+				carry = true
+			}
+
+			c.AC >>= 1
+			if c.PS&FlagCarry != 0 {
+				c.AC |= FlagNegtive
+			}
+			if carry {
 				c.PS |= FlagCarry
-				more |= 1 << 7
 			} else {
 				c.PS &= ^FlagCarry
 			}
-			c.AC >>= 1
-			c.AC |= more
 			c.setZN(c.AC)
 			return
 		}
+
 		addr, cycles = c.getAddr(i.Mode)
 		oper = c.Mem.ReadByte(addr)
 		if oper&1 != 0 {
+			carry = true
+		}
+
+		oper >>= 1
+		if c.PS&FlagCarry != 0 {
+			oper |= FlagNegtive
+		}
+		if carry {
 			c.PS |= FlagCarry
-			more |= 1 << 7
 		} else {
 			c.PS &= ^FlagCarry
 		}
-		oper >>= 1
-		oper |= more
 		c.setZN(oper)
 		c.Mem.WriteByte(addr, oper)
 
@@ -274,7 +308,8 @@ func (c *CPU) insHandler(i ins.Ins) (cycles time.Duration) {
 		c.PC = addr
 	case ins.JSR:
 		addr, cycles = c.getAddr(i.Mode)
-		c.pushWordToStack(c.PC + 2)
+		c.PC += uint16(i.Bytes)
+		c.pushWordToStack(c.PC - 1)
 		c.PC = addr
 	case ins.RTS:
 		addr = c.popWordFromStack()
