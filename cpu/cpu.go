@@ -30,9 +30,10 @@ type CPU struct {
 	totalCycles  time.Duration
 	durPerCycles time.Duration
 
-	NMI chan bool // edge trigger
-	IRQ bool      // level trigger
-	Mem Mem
+	NMI   chan bool // edge trigger
+	Reset chan bool // edge trigger
+	IRQ   bool      // level trigger
+	Mem   Mem
 
 	irqVec uint16
 	nmiVec uint16
@@ -42,17 +43,25 @@ type CPU struct {
 	RX uint8
 	RY uint8
 	PS uint8
+	IR uint8 // instruction register
 	sp uint8
 }
 
-func New() *CPU {
-	return &CPU{
-		sp:     0xff,
-		NMI:    make(chan bool),
-		irqVec: 0xFFFE,
-		nmiVec: 0xfffd,
-		PC:     0xFFFE,
+func New() (c *CPU) {
+	c = &CPU{
+		NMI:   make(chan bool),
+		Reset: make(chan bool),
 	}
+	// pagetable.com/?p=410
+	c.irqVec = 0xfffe
+	c.nmiVec = 0xfffa
+	c.reset()
+	return
+}
+
+func (c *CPU) reset() {
+	c.PC = 0xfffc
+	c.sp = 0xfd
 }
 
 func (c *CPU) SP() uint16 {
@@ -66,26 +75,44 @@ func (c *CPU) String() string {
 			t = append(t, pss[i])
 		}
 	}
-	return fmt.Sprintf("[%d]A:%02X X:%02X Y:%02X SP:%04X PC:%04X PS:%s",
+	return fmt.Sprintf("[%d]A:%02X X:%02X Y:%02X SP:%04X PC:%04X PS:%s IR:%02X",
 		c.totalCycles,
 		c.AC, c.RX, c.RY,
-		c.SP(), c.PC, t)
+		c.SP(), c.PC, t, c.IR)
 }
 
 func (c *CPU) Run(m Mem) (err error) {
 
 	c.Mem = m
 	var (
-		op     uint8
 		cycles time.Duration
 		i      ins.Ins
 		prev   uint16
 	)
 
 	for {
+
+		select {
+		case <-c.NMI:
+			c.pushWordToStack(c.PC + 2)
+			c.pushByteToStack(c.PS | FlagUnused)
+			c.PC = c.Mem.ReadWord(c.nmiVec)
+			c.PS |= FlagIRQDisable
+		case <-c.Reset:
+			c.reset()
+		default:
+		}
+
+		if c.IRQ && c.PS&FlagIRQDisable == 0 {
+			c.pushWordToStack(c.PC + 2)
+			c.pushByteToStack(c.PS | FlagUnused)
+			c.PC = c.Mem.ReadWord(c.irqVec)
+			c.PS |= FlagIRQDisable
+		}
+
 		prev = c.PC
-		op = m.ReadByte(c.PC)
-		i = ins.Table[op]
+		c.IR = m.ReadByte(c.PC)
+		i = ins.Table[c.IR]
 		if i.Cycles == 0 {
 			return c.Fault("invalid op code")
 		}
@@ -122,17 +149,6 @@ func (c *CPU) Run(m Mem) (err error) {
 			c.PC += uint16(i.Bytes)
 		}
 
-		select {
-		case <-c.NMI:
-			c.PC = c.nmiVec
-			continue
-		default:
-		}
-
-		if c.IRQ && c.PS&FlagIRQDisable == 0 {
-			c.PC = c.irqVec
-			c.PS |= FlagIRQDisable
-		}
 	}
 	return
 }
