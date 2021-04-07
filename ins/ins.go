@@ -2,6 +2,7 @@ package ins
 
 import (
 	"fmt"
+	"sync"
 	"time"
 )
 
@@ -118,4 +119,25 @@ func (i Ins) String() string {
 	return fmt.Sprintf("%s_%s", i.Name, i.Mode)
 }
 
-var Table = [256]Ins{}
+var (
+	Table        = [256]Ins{}
+	nameCache    = map[string][]Ins{}
+	nameCacheGen = &sync.Once{}
+)
+
+func GetNameTable(name string, mode Mode) Ins {
+	nameCacheGen.Do(func() {
+		for idx := range Table {
+			i := Table[idx]
+			nameCache[string(i.Name)] = append(nameCache[string(i.Name)], i)
+		}
+	})
+	fmt.Println(nameCache)
+
+	for _, i := range nameCache[name] {
+		if i.Mode == mode {
+			return i
+		}
+	}
+	return Ins{}
+}
