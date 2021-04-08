@@ -129,10 +129,9 @@ func GetNameTable(name string, mode Mode) Ins {
 	nameCacheGen.Do(func() {
 		for idx := range Table {
 			i := Table[idx]
-			nameCache[string(i.Name)] = append(nameCache[string(i.Name)], i)
+			nameCache[i.Name.String()] = append(nameCache[i.Name.String()], i)
 		}
 	})
-	fmt.Println(nameCache)
 
 	for _, i := range nameCache[name] {
 		if i.Mode == mode {

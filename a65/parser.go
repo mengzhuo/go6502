@@ -16,6 +16,7 @@ type Line struct {
 	Oper    string
 	Comment string
 	ins     ins.Ins
+	operand uint16
 }
 
 func (l *Line) String() string {
@@ -55,8 +56,10 @@ func (l *Line) findIns() (err error) {
 	if l.Ins == "" {
 		return
 	}
+
 	m := ins.Implied
 	if l.Oper != "" {
+
 	}
 
 	l.ins = ins.GetNameTable(l.Ins, m)
