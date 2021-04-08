@@ -3,27 +3,45 @@ package a65
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"go6502/ins"
 	"os"
 	"strings"
 )
 
-type Line struct {
-	No      int
-	Label   string
-	Ins     string
-	Oper    string
-	Comment string
-	ins     ins.Ins
-	operand uint16
+var letters []rune
+var lan []rune
+
+func init() {
+	for i := '0'; i <= '9'; i++ {
+		lan = append(lan, i)
+	}
+	for i := 'a'; i <= 'z'; i++ {
+		letters = append(letters, i)
+		lan = append(lan, i)
+	}
+	for i := 'A'; i <= 'Z'; i++ {
+		lan = append(lan, i)
+		letters = append(letters, i)
+	}
 }
 
-func (l *Line) String() string {
-	return fmt.Sprintf("[%4d] L:%s I:%s O:%s %s;%s", l.No, l.Label, l.Ins, l.Oper, l.Comment, l.ins)
+type Stmt struct {
+	No       int
+	Label    string
+	Mnemonic string
+	Oper     string
+	Comment  string
+	ins      ins.Ins
+	operand  uint16
 }
 
-func Parse(r *os.File) (il []*Line, err error) {
+func (l *Stmt) String() string {
+	return fmt.Sprintf("[%4d] L:%-8s I:%s O:%s %s;%s", l.No, l.Label, l.Mnemonic, l.Oper, l.Comment, l.ins)
+}
+
+func Parse(r *os.File) (il []*Stmt, err error) {
 	sc := bufio.NewScanner(r)
 	for ln := 1; sc.Scan(); ln++ {
 		t := sc.Bytes()
@@ -31,78 +49,109 @@ func Parse(r *os.File) (il []*Line, err error) {
 			// skip empty line
 			continue
 		}
-		var l *Line
-		l, err = parseline(t, ln)
-		if err != nil {
+		st := &Stmt{No: ln}
+		if err = st.parse(t); err != nil {
 			return
 		}
-		il = append(il, l)
+		if err = st.checkSyntax(); err != nil {
+			return
+		}
+		il = append(il, st)
 	}
 	err = sc.Err()
-	if err != nil {
-		return
-	}
-
-	for _, l := range il {
-		err = l.findIns()
-		if err != nil {
-			return
-		}
-	}
 	return
 }
 
-func (l *Line) findIns() (err error) {
-	if l.Ins == "" {
+func (l *Stmt) findIns() (err error) {
+	if l.Mnemonic == "" {
 		return
 	}
 
 	m := ins.Implied
-	if l.Oper != "" {
+	if l.Oper == "" {
+		l.ins = ins.GetNameTable(l.Mnemonic, m)
+		return
+	}
+	switch l.Oper[0] {
+	case '(':
 
+	case '#':
 	}
 
-	l.ins = ins.GetNameTable(l.Ins, m)
+	l.ins = ins.GetNameTable(l.Mnemonic, m)
 	return
 }
 
-func parseline(t []byte, ln int) (l *Line, err error) {
-	label := true
-	l = &Line{No: ln}
-	switch t[0] {
-	case ';', '*':
-		l.Comment = string(t)
-		return
-	case '\t':
-		label = false
+func (l *Stmt) checkSyntax() (err error) {
+	if l.Label == "" && l.Mnemonic == "" && l.Comment == "" {
+		return fmt.Errorf("statment invalid:%s", l)
 	}
 
-	fs := strings.FieldsFunc(string(t), func(r rune) bool { return r == '\t' })
-	last := len(fs) - 1
-	if fs[last][0] == ';' {
-		l.Comment = fs[last]
-		fs = fs[:last]
+	if len(l.Label) > 0 {
+		if len(l.Label) > 8 {
+			return fmt.Errorf("Label too long >8:%s", l.Label)
+		}
+		i := strings.IndexRune(string(letters), rune(l.Label[0]))
+		if i == -1 {
+			return fmt.Errorf("Label not start with char:%s", l.Label)
+		}
+		for _, c := range l.Label[1:] {
+			i := strings.IndexRune(string(lan), c)
+			if i == -1 {
+				return fmt.Errorf("Label contains invalid char:%s", l.Label)
+			}
+		}
 	}
-	if len(fs) == 0 {
-		return
+	if len(l.Mnemonic) > 0 {
+		if len(l.Mnemonic) != 3 {
+			return fmt.Errorf("Mnemonic invalid:%s", l.Mnemonic)
+		}
+		for _, c := range l.Mnemonic {
+			if strings.IndexRune(string(letters), c) == -1 {
+				return fmt.Errorf("Mnemonic invalid", l.Mnemonic)
+			}
+		}
 	}
+	return
+}
 
-	if label {
-		l.Label = fs[0]
-		fs = fs[1:]
-	}
-	if len(fs) != 1 {
-		return
-	}
-	op := strings.Fields(fs[0])
-	switch len(op) {
-	default:
-		err = fmt.Errorf("Syntax error:%s", string(t))
-	case 1:
-		l.Ins = strings.ToUpper(op[0])
-	case 2:
-		l.Ins = strings.ToUpper(op[0])
-		l.Oper = op[1]
+func (l *Stmt) parse(t []byte) (err error) {
+	defer func() {
+		if l.Label == "\t" {
+			l.Label = ""
+		}
+	}()
+	for len(t) > 0 {
+		c := t[0]
+		switch c {
+		case ' ', '\t':
+			if l.Label == "" {
+				l.Label = "\t"
+			}
+			t = t[1:]
+		case ';', '*':
+			l.Comment = string(t)
+			return
+		default:
+			i := bytes.IndexAny(t, "\t \n\r")
+			if i == -1 {
+				i = len(t)
+			}
+			var w []byte
+			w, t = t[:i], t[i:]
+			if l.Label == "" {
+				l.Label = string(w)
+				continue
+			}
+			if l.Mnemonic == "" {
+				l.Mnemonic = string(w)
+				continue
+			}
+			if l.Oper == "" {
+				l.Oper = string(w)
+				continue
+			}
+		}
 	}
 	return
 }

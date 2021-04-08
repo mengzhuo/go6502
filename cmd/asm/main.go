@@ -44,11 +44,14 @@ func load(in, of string) (err error) {
 	}
 
 	ol, err := a65.Parse(ipf)
+	if err != nil {
+		return err
+	}
 	err = encObj(of, ol)
 	return
 }
 
-func encObj(of string, ol []*a65.Line) (err error) {
+func encObj(of string, ol []*a65.Stmt) (err error) {
 	for i := range ol {
 		fmt.Println(ol[i])
 	}
