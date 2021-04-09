@@ -34,11 +34,46 @@ type Stmt struct {
 	Oper     string
 	Comment  string
 	ins      ins.Ins
-	operand  uint16
+	Offset   uint16
+	u16      uint16
+	u8       uint8
+	s8       int8
 }
 
 func (l *Stmt) String() string {
-	return fmt.Sprintf("[%4d] L:%-8s I:%s O:%s %s;%s", l.No, l.Label, l.Mnemonic, l.Oper, l.Comment, l.ins)
+	if l.ins.Mode == 0 {
+		return fmt.Sprintf("[%4d] L:%-8s I:%s O:%s %s;%s", l.No, l.Label, l.Mnemonic, l.Oper, l.Comment, l.ins)
+	}
+
+	switch l.ins.Mode {
+	case ins.Relative:
+		if l.s8 >= 0 {
+			return fmt.Sprintf("%s *+%d", l.ins, l.s8)
+		}
+		return fmt.Sprintf("%s *%d", l.ins, l.s8)
+
+	case ins.Absolute:
+		return fmt.Sprintf("%s $%04X", l.ins, l.u16)
+	case ins.AbsoluteX:
+		return fmt.Sprintf("%s $%04X,X", l.ins, l.u16)
+	case ins.AbsoluteY:
+		return fmt.Sprintf("%s $%04X,Y", l.ins, l.u16)
+
+	case ins.ZeroPage:
+		return fmt.Sprintf("%s $%02X", l.ins, l.u8)
+	case ins.ZeroPageX:
+		return fmt.Sprintf("%s $%02X,X", l.ins, l.u8)
+	case ins.ZeroPageY:
+		return fmt.Sprintf("%s $%02X,Y", l.ins, l.u8)
+	case ins.Indirect:
+		return fmt.Sprintf("%s ($%04X)", l.ins, l.u16)
+	case ins.IndirectX:
+		return fmt.Sprintf("%s ($%02X,X)", l.ins, l.u8)
+	case ins.IndirectY:
+		return fmt.Sprintf("%s ($%02X),Y", l.ins, l.u8)
+	default:
+		return l.ins.String()
+	}
 }
 
 func Parse(r *os.File) (il []*Stmt, err error) {
@@ -63,7 +98,10 @@ func Parse(r *os.File) (il []*Stmt, err error) {
 }
 
 func (l *Stmt) findIns() (err error) {
-	if l.Mnemonic == "" {
+	switch l.Mnemonic {
+	// presudo OP
+	case "", "EQU", "ORG", "EPZ", "DFS", "OBJ", "HEX",
+		"ASC", "STR":
 		return
 	}
 
@@ -73,9 +111,22 @@ func (l *Stmt) findIns() (err error) {
 		return
 	}
 	switch l.Oper[0] {
+	case 'A':
+		m = ins.Accumulator
+	case '$':
+		m = ins.ZeroPage
+		o := strings.ToUpper(l.Oper)
+		if strings.HasSuffix(o, ",X") {
+			m = ins.ZeroPageX
+		}
+		if strings.HasSuffix(o, ",Y") {
+			m = ins.ZeroPageY
+		}
 	case '(':
-
 	case '#':
+		m = ins.Immediate
+	case '*':
+		m = ins.Relative
 	}
 
 	l.ins = ins.GetNameTable(l.Mnemonic, m)
