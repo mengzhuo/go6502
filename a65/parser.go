@@ -51,7 +51,8 @@ func (l *Stmt) String() string {
 			return fmt.Sprintf("%s *+%d", l.ins, l.s8)
 		}
 		return fmt.Sprintf("%s *%d", l.ins, l.s8)
-
+	case ins.Immediate:
+		return fmt.Sprintf("%s #$%02X", l.ins, l.u8)
 	case ins.Absolute:
 		return fmt.Sprintf("%s $%04X", l.ins, l.u16)
 	case ins.AbsoluteX:

@@ -15,7 +15,7 @@ func Disasm(d []byte) (sl []*Stmt, err error) {
 			return
 		}
 
-		s := &Stmt{Offset: uint16(i), ins: op}
+		s := &Stmt{Offset: uint16(i) + 0x400, ins: op}
 		switch op.Mode {
 		case ins.Immediate, ins.ZeroPage, ins.ZeroPageX, ins.ZeroPageY,
 			ins.IndirectX, ins.IndirectY:
@@ -23,7 +23,7 @@ func Disasm(d []byte) (sl []*Stmt, err error) {
 		case ins.Relative:
 			s.s8 = int8(d[i+1])
 		case ins.Absolute, ins.AbsoluteX, ins.AbsoluteY, ins.Indirect:
-			s.u16 = binary.LittleEndian.Uint16(d[i:])
+			s.u16 = binary.LittleEndian.Uint16(d[i+1:])
 		}
 		i += int(op.Bytes)
 		sl = append(sl, s)
