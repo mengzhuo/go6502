@@ -310,7 +310,6 @@ func (c *CPU) insHandler(i ins.Ins) (cycles time.Duration, err error) {
 		c.PC = addr
 	case ins.JSR:
 		addr, cycles = c.getAddr(i.Mode)
-		c.PC += uint16(i.Bytes)
 		c.pushWordToStack(c.PC - 1)
 		c.PC = addr
 	case ins.RTS:
@@ -353,7 +352,7 @@ func (c *CPU) insHandler(i ins.Ins) (cycles time.Duration, err error) {
 
 	// System Functions
 	case ins.BRK:
-		c.pushWordToStack(c.PC + 2)
+		c.pushWordToStack(c.PC + 1)
 		c.pushByteToStack(c.PS | FlagBreak | FlagUnused)
 		c.PC = c.Mem.ReadWord(c.irqVec)
 		c.PS |= FlagBreak | FlagIRQDisable
@@ -373,20 +372,19 @@ func (c *CPU) BranchIf(i ins.Ins, flag uint8, set bool) (cycles time.Duration) {
 	}
 
 	if !ok {
-		c.PC += uint16(i.Bytes)
 		cycles = 1
 		return
 	}
 
-	oper := c.Mem.ReadByte(c.PC + 1)
+	oper := c.Mem.ReadByte(c.PC - 1)
+	old := c.PC - 1
 	cycles = 1
 	if oper&FlagNegtive == 0 {
-		c.PC += uint16(oper) + 2
+		c.PC += uint16(oper)
 	} else {
-		c.PC -= uint16(0xff^oper) - 1
+		c.PC = c.PC - uint16(0xff^oper) - 1
 	}
 
-	old := c.PC
 	// cross page
 	if (old^c.PC)>>8 != 0 {
 		cycles += 1
@@ -400,43 +398,43 @@ func (c *CPU) getAddr(mode ins.Mode) (addr uint16, cycles time.Duration) {
 	default:
 		panic("no handler")
 	case ins.Immediate:
-		addr = c.PC + 1
+		addr = c.PC - 1
 	case ins.ZeroPage:
-		addr = uint16(m.ReadByte(c.PC + 1))
+		addr = uint16(m.ReadByte(c.PC - 1))
 	case ins.ZeroPageX:
 		// zero page should be wrapped
-		zp := m.ReadByte(c.PC + 1)
+		zp := m.ReadByte(c.PC - 1)
 		addr = uint16(c.RX + zp)
 	case ins.ZeroPageY:
 		// zero page should be wrapped
-		zp := m.ReadByte(c.PC + 1)
+		zp := m.ReadByte(c.PC - 1)
 		addr = uint16(c.RY + zp)
 	case ins.Absolute:
-		addr = m.ReadWord(c.PC + 1)
+		addr = m.ReadWord(c.PC - 2)
 	case ins.AbsoluteX:
-		addr = m.ReadWord(c.PC + 1)
+		addr = m.ReadWord(c.PC - 2)
 		addrx := uint16(c.RX) + addr
 		if addr^addrx>>8 != 0 {
 			cycles += 1
 		}
 		addr = addrx
 	case ins.AbsoluteY:
-		addr = m.ReadWord(c.PC + 1)
+		addr = m.ReadWord(c.PC - 2)
 		addry := uint16(c.RY) + addr
 		if addr^addry>>8 != 0 {
 			cycles += 1
 		}
 		addr = addry
 	case ins.Indirect:
-		addr = m.ReadWord(c.PC + 1)
+		addr = m.ReadWord(c.PC - 2)
 		addr = m.ReadWord(addr)
 	case ins.IndirectX:
-		zaddr := m.ReadByte(c.PC + 1)
+		zaddr := m.ReadByte(c.PC - 1)
 		addr = uint16(c.RX + zaddr)
 		// effective addr
 		addr = m.ReadWord(addr)
 	case ins.IndirectY:
-		addr = uint16(m.ReadByte(c.PC + 1))
+		addr = uint16(m.ReadByte(c.PC - 1))
 		// effective addr
 		addr = m.ReadWord(addr)
 		addry := addr + uint16(c.RY)

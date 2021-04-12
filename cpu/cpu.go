@@ -94,7 +94,7 @@ func (c *CPU) Run(m Mem) (err error) {
 
 		select {
 		case <-c.NMI:
-			c.pushWordToStack(c.PC + 2)
+			c.pushWordToStack(c.PC)
 			c.pushByteToStack(c.PS | FlagUnused)
 			c.PC = c.Mem.ReadWord(c.nmiVec)
 			c.PS |= FlagIRQDisable
@@ -104,7 +104,7 @@ func (c *CPU) Run(m Mem) (err error) {
 		}
 
 		if c.IRQ && c.PS&FlagIRQDisable == 0 {
-			c.pushWordToStack(c.PC + 2)
+			c.pushWordToStack(c.PC)
 			c.pushByteToStack(c.PS | FlagUnused)
 			c.PC = c.Mem.ReadWord(c.irqVec)
 			c.PS |= FlagIRQDisable
@@ -119,13 +119,15 @@ func (c *CPU) Run(m Mem) (err error) {
 		if debug {
 			fmt.Println(c, i)
 		}
+		c.PC += uint16(i.Bytes)
+
 		cycles, err = c.insHandler(i)
 		if err != nil {
 			return
 		}
 		cycles += i.Cycles
 		c.totalCycles += cycles
-		time.Sleep(cycles * c.durPerCycles)
+		// time.Sleep(cycles * c.durPerCycles)
 
 		if debug {
 			if c.totalCycles > targetCycle {
@@ -138,15 +140,8 @@ func (c *CPU) Run(m Mem) (err error) {
 		}
 
 		// the instruction didn't change PC
-		switch i.Name {
-		case ins.BCC, ins.BCS, ins.BEQ, ins.BMI,
-			ins.BNE, ins.BPL, ins.BVC, ins.BVS, ins.JMP,
-			ins.JSR, ins.BRK, ins.RTI, ins.RTS:
-			if c.PC == prev {
-				return c.Fault("infinite loop")
-			}
-		default:
-			c.PC += uint16(i.Bytes)
+		if c.PC == prev {
+			return c.Fault("infinite loop")
 		}
 
 	}
