@@ -2,6 +2,7 @@ package ins
 
 import (
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 )
@@ -132,6 +133,7 @@ func GetNameTable(name string, mode Mode) Ins {
 			nameCache[i.Name.String()] = append(nameCache[i.Name.String()], i)
 		}
 	})
+	name = strings.ToUpper(name)
 
 	for _, i := range nameCache[name] {
 		if i.Mode == mode {

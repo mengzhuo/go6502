@@ -92,6 +92,9 @@ func Parse(r *os.File) (il []*Stmt, err error) {
 		if err = st.checkSyntax(); err != nil {
 			return
 		}
+		if err = st.findIns(); err != nil {
+			return
+		}
 		il = append(il, st)
 	}
 	err = sc.Err()
@@ -101,8 +104,8 @@ func Parse(r *os.File) (il []*Stmt, err error) {
 func (l *Stmt) findIns() (err error) {
 	switch l.Mnemonic {
 	// presudo OP
-	case "", "EQU", "ORG", "EPZ", "DFS", "OBJ", "HEX",
-		"ASC", "STR":
+	case "", "EPZ", "DFS", "OBJ", "HEX", "ORG", "EQU",
+		"ASC", "STR", "DB", "DS":
 		return
 	}
 
@@ -155,7 +158,7 @@ func (l *Stmt) checkSyntax() (err error) {
 		}
 	}
 	if len(l.Mnemonic) > 0 {
-		if len(l.Mnemonic) != 3 {
+		if len(l.Mnemonic) < 2 || len(l.Mnemonic) > 3 {
 			return fmt.Errorf("Mnemonic invalid:%s", l.Mnemonic)
 		}
 		for _, c := range l.Mnemonic {
@@ -164,6 +167,30 @@ func (l *Stmt) checkSyntax() (err error) {
 			}
 		}
 	}
+
+	switch l.Mnemonic {
+	case "EQU":
+		if l.Label == "" {
+			err = fmt.Errorf("%s require Label", l.Mnemonic)
+			return
+		}
+		if l.Oper == "" {
+			err = fmt.Errorf("%s require operand", l.Mnemonic)
+			return
+		}
+		return
+	case "ORG":
+		if l.Oper == "" {
+			err = fmt.Errorf("%s require operand", l.Mnemonic)
+			return
+		}
+		return
+
+	// presudo OP
+	case "", "EPZ", "DFS", "OBJ", "HEX",
+		"ASC", "STR", "DB", "DS":
+	}
+
 	return
 }
 
