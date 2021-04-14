@@ -3,13 +3,13 @@ package main
 import (
 	"flag"
 	"fmt"
-	"go6502/a65"
+	"go6502/lisa"
 	"os"
 	"path/filepath"
 )
 
 var (
-	in  = flag.String("i", "", "input a65 file")
+	in  = flag.String("i", "", "input file")
 	out = flag.String("o", "", "output object file")
 )
 
@@ -20,7 +20,8 @@ func main() {
 		return
 	}
 
-	if filepath.Ext(*in) != ".a65" {
+	ext := filepath.Ext(*in)
+	if ext != ".s" {
 		flag.Usage()
 		return
 	}
@@ -28,7 +29,7 @@ func main() {
 	inf := *in
 	of := *out
 	if of == "" {
-		of = inf[:len(inf)-3] + "o"
+		of = inf[:len(inf)-len(ext)] + "o"
 	}
 	err := load(*in, of)
 	if err != nil {
@@ -43,7 +44,7 @@ func load(in, of string) (err error) {
 		return
 	}
 
-	ol, err := a65.Parse(ipf)
+	ol, err := lisa.Parse(ipf)
 	if err != nil {
 		return err
 	}
@@ -51,8 +52,11 @@ func load(in, of string) (err error) {
 	return
 }
 
-func encObj(of string, ol []*a65.Stmt) (err error) {
+func encObj(of string, ol []*lisa.Stmt) (err error) {
 	for i := range ol {
+		if ol[i].Mnemonic == 0 && ol[i].Comment != "" {
+			continue
+		}
 		fmt.Println(ol[i])
 	}
 	return
