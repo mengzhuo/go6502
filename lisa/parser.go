@@ -50,6 +50,16 @@ type Stmt struct {
 	Mode     ins.Mode
 }
 
+func (s *Stmt) NE(f string, args ...interface{}) error {
+	args = append(args, s.Line)
+	if len(args) == 1 {
+		return fmt.Errorf("Line:%d "+f, s.Line)
+	}
+	l := len(args) - 1
+	args[0], args[l] = args[l], args[0]
+	return fmt.Errorf("Line:%d "+f, args...)
+}
+
 func semantic(il []*Stmt) (err error) {
 	// build label table
 	lt := map[string]*Stmt{}
@@ -59,8 +69,9 @@ func semantic(il []*Stmt) (err error) {
 			break
 		}
 		if s.Label != "" {
-			if _, ok := lt[s.Label]; ok {
-				el = append(el, fmt.Errorf("duplicate regular label %s", s.Label))
+			if ps, ok := lt[s.Label]; ok {
+				el = append(el, fmt.Errorf("Line %d duplicate regular label %q, previous defined at line %d",
+					s.Line, s.Label, ps.Line))
 				continue
 			}
 			lt[s.Label] = s
@@ -83,7 +94,7 @@ end:
 			case TLabel:
 				ls, ok := lt[string(t.Value)]
 				if !ok {
-					el = append(el, fmt.Errorf("can't find regular label:%s", string(t.Value)))
+					el = append(el, s.NE("can't find regular label:%s", string(t.Value)))
 					continue
 				}
 				t.label = ls
@@ -92,24 +103,24 @@ end:
 				tl := il[:i]
 				for j := len(tl) - 1; j >= 0; j-- {
 					jt := tl[j]
-					if jt.Label == string(t.Value) {
+					if strings.HasPrefix(jt.Label, "^") && jt.Label[1:] == string(t.Value) {
 						t.label = jt
 						break
 					}
 				}
 				if t.label == nil {
-					el = append(el, fmt.Errorf("can't find local label:%s", string(t.Value)))
+					el = append(el, s.NE("can't find local label:%s", string(t.Value)))
 				}
 
 			case TGTLabel:
 				for _, jt := range il[i:] {
-					if jt.Label == string(t.Value) {
+					if strings.HasPrefix(jt.Label, "^") && jt.Label[1:] == string(t.Value) {
 						t.label = jt
 						break
 					}
 				}
 				if t.label == nil {
-					el = append(el, fmt.Errorf("can't find local label:%s", string(t.Value)))
+					el = append(el, s.NE("can't find local label:%s", string(t.Value)))
 				}
 			}
 		}
