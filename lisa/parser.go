@@ -51,17 +51,71 @@ type Stmt struct {
 }
 
 func semantic(il []*Stmt) (err error) {
-	// Label Table
+	// build label table
 	lt := map[string]*Stmt{}
+	el := []error{}
 	for _, s := range il {
+		if len(el) > 10 {
+			break
+		}
 		if s.Label != "" {
 			if _, ok := lt[s.Label]; ok {
-				err = fmt.Errorf("duplicate label %s", s.Label)
-				return
+				el = append(el, fmt.Errorf("duplicate regular label %s", s.Label))
+				continue
 			}
 			lt[s.Label] = s
 		}
 	}
+
+	err = elToError(el)
+	if err != nil {
+		return
+	}
+end:
+	// find Label
+	for i, s := range il {
+		for t := s.Expr; t != nil; t = t.next {
+			if len(el) > 10 {
+				el = append(el, fmt.Errorf("too many errors"))
+				break end
+			}
+			switch t.Type {
+			case TLabel:
+				ls, ok := lt[string(t.Value)]
+				if !ok {
+					el = append(el, fmt.Errorf("can't find regular label:%s", string(t.Value)))
+					continue
+				}
+				t.label = ls
+
+			case TLSLabel:
+				tl := il[:i]
+				for j := len(tl) - 1; j >= 0; j-- {
+					jt := tl[j]
+					if jt.Label == string(t.Value) {
+						t.label = jt
+						break
+					}
+				}
+				if t.label == nil {
+					el = append(el, fmt.Errorf("can't find local label:%s", string(t.Value)))
+				}
+
+			case TGTLabel:
+				for _, jt := range il[i:] {
+					if jt.Label == string(t.Value) {
+						t.label = jt
+						break
+					}
+				}
+				if t.label == nil {
+					el = append(el, fmt.Errorf("can't find local label:%s", string(t.Value)))
+				}
+			}
+		}
+	}
+
+	err = elToError(el)
 	return
 }
 
@@ -69,7 +123,20 @@ func (l *Stmt) String() string {
 	return fmt.Sprintf("[%4d] L:%-8s I:%s O:%s M:%s %s", l.Line, l.Label, l.Mnemonic, l.Oper, l.Mode, l.Comment)
 }
 
+func elToError(el []error) (err error) {
+	if len(el) == 0 {
+		return nil
+	}
+	buf := []string{}
+	for _, e := range el {
+		buf = append(buf, e.Error())
+	}
+	return fmt.Errorf(strings.Join(buf, "\n"))
+}
+
 func parse(il []*Stmt) (err error) {
+
+	el := []error{}
 
 	for _, s := range il {
 		if s.Oper == "" {
@@ -78,26 +145,29 @@ func parse(il []*Stmt) (err error) {
 
 		s.Mode, s.Expr, err = parseOperand([]byte(s.Oper))
 		if err != nil {
-			return fmt.Errorf("Line:%d %s", s.Line, err)
+			el = append(el, fmt.Errorf("Line:%d %s", s.Line, err))
+			if len(el) > 10 {
+				el = append(el, fmt.Errorf("too many error"))
+				break
+			}
 		}
 		err = syntaxCheck(s.Expr)
 		if err != nil {
-			return fmt.Errorf("Line:%d %s", s.Line, err)
+			el = append(el, fmt.Errorf("Line:%d %s", s.Line, err))
+			if len(el) > 10 {
+				break
+			}
 		}
 	}
-	return
+	return elToError(el)
 }
 
 func Parse(r *os.File) (il []*Stmt, err error) {
 	sc := bufio.NewScanner(r)
 	for ln := 1; sc.Scan(); ln++ {
 		t := sc.Bytes()
-		if len(t) == 0 {
+		if len(t) == 0 || len(bytes.TrimSpace(t)) == 0 {
 			// skip empty line
-			continue
-		}
-
-		if len(bytes.TrimSpace(t)) == 0 {
 			continue
 		}
 
@@ -109,6 +179,10 @@ func Parse(r *os.File) (il []*Stmt, err error) {
 		il = append(il, st)
 	}
 	err = parse(il)
+	if err != nil {
+		return
+	}
+	err = semantic(il)
 	return
 }
 
@@ -155,6 +229,7 @@ func lexing(l *Stmt, t []byte) (err error) {
 }
 
 func (l *Stmt) processLabel(b []byte) (err error) {
+	// local label
 	l.Label = strings.ToUpper(string(b))
 	return
 }

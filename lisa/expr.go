@@ -17,6 +17,8 @@ const (
 	TBinary
 	TAscii
 	TCurrentLine
+	TLSLabel
+	TGTLabel
 )
 
 // RIGHT -> LEFT
@@ -26,6 +28,7 @@ type Term struct {
 	operator byte
 	order    byte
 	Value    []byte
+	label    *Stmt
 }
 
 func (t *Term) String() string {
@@ -37,10 +40,16 @@ func (t *Term) String() string {
 
 // Tokenize
 func parseOperand(b []byte) (mode ins.Mode, root *Term, err error) {
+	const (
+		zeroPage     uint16 = 1
+		indirectFlag uint16 = 4
+	)
+
 	root = &Term{}
 	t := root
-	indirect := uint16(1) // (:2 ):4
-	for len(b) > 0 {
+	indirect := zeroPage // (:2 ):4
+
+	for col := 0; len(b) > 0; col += 1 {
 		c := b[0]
 		b = b[1:]
 		switch c {
@@ -51,7 +60,7 @@ func parseOperand(b []byte) (mode ins.Mode, root *Term, err error) {
 					indirect |= uint16(b[0]) << 8
 					b = b[1:]
 				default:
-					err = fmt.Errorf("should end with X, Y, got=%s", string(b))
+					err = fmt.Errorf("Col:%d should end with X, Y, got=%s", col, string(b))
 				}
 				continue
 			}
@@ -62,7 +71,7 @@ func parseOperand(b []byte) (mode ins.Mode, root *Term, err error) {
 				continue
 			}
 
-			err = fmt.Errorf("should end with X or X) or Y, got=%s", string(b))
+			err = fmt.Errorf("Col:%d should end with X, X) or Y, got=%s", col, string(b))
 			return
 		case OpLeftBracket:
 			// should be first
@@ -70,10 +79,16 @@ func parseOperand(b []byte) (mode ins.Mode, root *Term, err error) {
 				indirect <<= 1
 			}
 		case OpRightBracket:
-			// should not be first
-			if t.Type != 0 {
-				indirect <<= 1
+			// should be  closed
+			if t.Type == 0 {
+				err = fmt.Errorf("Col:%d invalid right bracket", col)
+				return
 			}
+			if indirect != 2 {
+				err = fmt.Errorf("Col:%d no matched bracket", col)
+				return
+			}
+			indirect <<= 1
 		case OpLowOrder:
 			if t.order != 0 {
 				err = fmt.Errorf("duplicate order")
@@ -117,6 +132,18 @@ func parseOperand(b []byte) (mode ins.Mode, root *Term, err error) {
 				return
 			}
 			t.Type = TBinary
+		case OpLSLabel:
+			if t.Type != 0 {
+				err = fmt.Errorf("duplicate type")
+				return
+			}
+			t.Type = TLSLabel
+		case OpGTLabel:
+			if t.Type != 0 {
+				err = fmt.Errorf("duplicate type")
+				return
+			}
+			t.Type = TGTLabel
 		default:
 			if t.Type == 0 {
 				if c >= '0' && c <= '9' {
@@ -129,16 +156,18 @@ func parseOperand(b []byte) (mode ins.Mode, root *Term, err error) {
 		}
 	}
 	switch indirect {
-	case uint16('X')<<8 | 4:
+	case uint16('X')<<8 | indirectFlag:
 		mode = ins.IndirectX
-	case uint16('Y')<<8 | 4:
+	case uint16('Y')<<8 | indirectFlag:
 		mode = ins.IndirectY
-	case 4:
+	case indirectFlag:
 		mode = ins.Indirect
-	case 1 | uint16('X')<<8:
+	case zeroPage | uint16('X')<<8:
 		mode = ins.ZeroPageX
-	case 1 | uint16('Y')<<8:
+	case zeroPage | uint16('Y')<<8:
 		mode = ins.ZeroPageY
+	case 2:
+		err = fmt.Errorf("bracket not closed")
 	}
 
 	return

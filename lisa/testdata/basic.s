@@ -3,17 +3,17 @@
 ********
 
 ; This is a test comment
-
+SYMBOLIC EQU $1000
 	LDA LABEL-SYMBOLIC
 	LDA  LABEL+$1
 	LDA   $1
-	LDA  $800
+LBL	LDA  $800
 	LDA LBL,X
 	LDA LBL+$1,X
 	LDA $10,X
 	LDA $1010,X
 	LDA LBL,Y
-	STA LBL+$80,Y
+LABEL	STA LBL+$80,Y
 	LDX $0,Y
 	BNE LBL
 	BCS LBL+$3

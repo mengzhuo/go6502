@@ -17,4 +17,6 @@ const (
 	OpQuote             = '"'
 	OpLeftBracket       = '('
 	OpRightBracket      = ')'
+	OpLSLabel           = '<'
+	OpGTLabel           = '>'
 )
