@@ -120,7 +120,5 @@ const (
 	IF
 	EL
 	FI
-	DB
-	DS // special op
 	USR
 )

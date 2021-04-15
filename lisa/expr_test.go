@@ -39,7 +39,7 @@ var bad = map[string]string{
 
 func TestTokenizeExpr(t *testing.T) {
 	for i, g := range good {
-		e, err := getTermFromExpr([]byte(g))
+		_, e, err := parseOperand([]byte(g))
 		c := []string{}
 		for term := e; term != nil; term = term.next {
 			c = append(c, term.String())
@@ -53,7 +53,7 @@ func TestTokenizeExpr(t *testing.T) {
 
 func TestSyntaxExpr(t *testing.T) {
 	for k, v := range bad {
-		e, err := getTermFromExpr([]byte(k))
+		_, e, err := parseOperand([]byte(k))
 		if err != nil || e == nil {
 			t.Errorf("%s:%v", k, err)
 		}

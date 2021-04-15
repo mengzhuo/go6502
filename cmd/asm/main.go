@@ -9,8 +9,9 @@ import (
 )
 
 var (
-	in  = flag.String("i", "", "input file")
-	out = flag.String("o", "", "output object file")
+	in       = flag.String("i", "", "input file")
+	out      = flag.String("o", "", "output object file")
+	debugIns = flag.Bool("L", false, "print instruction")
 )
 
 func main() {
@@ -57,7 +58,9 @@ func encObj(of string, ol []*lisa.Stmt) (err error) {
 		if ol[i].Mnemonic == 0 && ol[i].Comment != "" {
 			continue
 		}
-		fmt.Println(ol[i])
+		if *debugIns {
+			fmt.Println(ol[i])
+		}
 	}
 	return
 }

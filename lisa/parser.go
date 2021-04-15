@@ -66,7 +66,7 @@ func semantic(il []*Stmt) (err error) {
 }
 
 func (l *Stmt) String() string {
-	return fmt.Sprintf("[%4d] L:%-8s I:%s O:%s %s", l.Line, l.Label, l.Mnemonic, l.Oper, l.Comment)
+	return fmt.Sprintf("[%4d] L:%-8s I:%s O:%s M:%s %s", l.Line, l.Label, l.Mnemonic, l.Oper, l.Mode, l.Comment)
 }
 
 func parse(il []*Stmt) (err error) {
@@ -75,13 +75,14 @@ func parse(il []*Stmt) (err error) {
 		if s.Oper == "" {
 			continue
 		}
-		s.Expr, err = getTermFromExpr([]byte(s.Oper))
+
+		s.Mode, s.Expr, err = parseOperand([]byte(s.Oper))
 		if err != nil {
-			return
+			return fmt.Errorf("Line:%d %s", s.Line, err)
 		}
 		err = syntaxCheck(s.Expr)
 		if err != nil {
-			return
+			return fmt.Errorf("Line:%d %s", s.Line, err)
 		}
 	}
 	return
