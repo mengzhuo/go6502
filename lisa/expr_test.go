@@ -68,3 +68,27 @@ func TestSyntaxExpr(t *testing.T) {
 		}
 	}
 }
+
+func TestTermUint16(t *testing.T) {
+
+	for k, v := range map[string]uint16{
+		"$16":   0x16,
+		"!16":   16,
+		"%0101": 5,
+		"$42":   0x42,
+		"$FF":   0xff,
+		"$FFFF": 0xFFff,
+	} {
+		_, e, _, err := parseOperand([]byte(k))
+		if err != nil {
+			t.Error(err)
+		}
+		u, err := e.Uint16()
+		if err != nil {
+			t.Error(err)
+		}
+		if u != v {
+			t.Errorf("%s => 0x%x, expect 0x%x", k, u, v)
+		}
+	}
+}
