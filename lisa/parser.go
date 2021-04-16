@@ -46,6 +46,7 @@ type Stmt struct {
 	Mnemonic Mnemonic
 	Oper     string
 	Comment  string
+	Order    byte
 	Expr     *Term
 	Mode     ins.Mode
 }
@@ -60,7 +61,7 @@ func (s *Stmt) NE(f string, args ...interface{}) error {
 	return fmt.Errorf("Line:%d "+f, args...)
 }
 
-func semantic(il []*Stmt) (err error) {
+func checkLabels(il []*Stmt) (err error) {
 	// build label table
 	lt := map[string]*Stmt{}
 	el := []error{}
@@ -130,8 +131,22 @@ end:
 	return
 }
 
+func semantic(il []*Stmt) (err error) {
+	type checker func(il []*Stmt) error
+	for _, f := range []checker{
+		checkLabels,
+	} {
+		err = f(il)
+		if err != nil {
+			return
+		}
+	}
+	return
+}
+
 func (l *Stmt) String() string {
-	return fmt.Sprintf("[%4d] L:%-8s I:%s O:%s M:%s %s", l.Line, l.Label, l.Mnemonic, l.Oper, l.Mode, l.Comment)
+	return fmt.Sprintf("[%4d] L:%-8s I:%s O[%s]%s M:%s %s", l.Line, l.Label, l.Mnemonic,
+		string(l.Order), l.Oper, l.Mode, l.Comment)
 }
 
 func elToError(el []error) (err error) {
@@ -154,7 +169,7 @@ func parse(il []*Stmt) (err error) {
 			continue
 		}
 
-		s.Mode, s.Expr, err = parseOperand([]byte(s.Oper))
+		s.Mode, s.Expr, s.Order, err = parseOperand([]byte(s.Oper))
 		if err != nil {
 			el = append(el, fmt.Errorf("Line:%d %s", s.Line, err))
 			if len(el) > 10 {
@@ -207,10 +222,16 @@ func lexing(l *Stmt, t []byte) (err error) {
 				l.Label = "\t"
 			}
 			t = t[1:]
-		case ';', '*':
+		case ';':
 			l.Comment = string(t)
 			t = t[:0]
-			continue
+		case '*':
+			if l.Mnemonic == 0 {
+				l.Comment = string(t)
+				t = t[:0]
+				continue
+			}
+			fallthrough
 		default:
 			i := bytes.IndexAny(t, "\t \n\r")
 			if i == -1 {

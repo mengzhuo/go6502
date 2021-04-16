@@ -31,6 +31,6 @@ LABEL	STA LBL+$80,Y
 	 JMP (LBL)
 	JMP (LBL+$3)
 	JMP ($800)
-^0 LDA #0 
+^0 LDA #666
 ^9 STA <0
 ^7 BIT $C010

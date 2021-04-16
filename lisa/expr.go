@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"go6502/ins"
+	"strconv"
 )
 
 type TermType byte
@@ -26,20 +27,41 @@ type Term struct {
 	next     *Term
 	Type     TermType
 	operator byte
-	order    byte
 	Value    []byte
 	label    *Stmt
+}
+
+func (t *Term) Uint16() (u uint16, err error) {
+
+	var u64 uint64
+	switch t.Type {
+	case THex:
+		u64, err = strconv.ParseUint(string(t.Value), 16, 16)
+	case TBinary:
+		u64, err = strconv.ParseUint(string(t.Value), 2, 16)
+	case TDecimal:
+		u64, err = strconv.ParseUint(string(t.Value), 10, 16)
+	default:
+		err = fmt.Errorf("unsupported:%q", t.Value)
+	}
+
+	if err != nil {
+		return
+	}
+
+	u = uint16(u64)
+	return
 }
 
 func (t *Term) String() string {
 	if t.Type == TOperator {
 		return string(t.Value)
 	}
-	return fmt.Sprintf("[%s]%s %s", string(t.order), t.Type, string(t.Value))
+	return fmt.Sprintf("%s %s", t.Type, string(t.Value))
 }
 
 // Tokenize
-func parseOperand(b []byte) (mode ins.Mode, root *Term, err error) {
+func parseOperand(b []byte) (mode ins.Mode, root *Term, order byte, err error) {
 	const (
 		zeroPage     uint16 = 1
 		indirectFlag uint16 = 4
@@ -90,26 +112,38 @@ func parseOperand(b []byte) (mode ins.Mode, root *Term, err error) {
 			}
 			indirect <<= 1
 		case OpLowOrder:
-			if t.order != 0 {
+			if t.Type != 0 {
+				err = fmt.Errorf("order should be the first byte of expr")
+				return
+			}
+			if order != 0 {
 				err = fmt.Errorf("duplicate order")
 				return
 			}
-			t.order = c
+			order = c
+
 		case OpAdd, OpMinus, OpOr, OpXor, OpAnd, OpDivision, OpAsterisk:
 			if len(t.Value) == 0 && c == OpMinus {
 				t.Value = append(t.Value, c)
 				continue
 			}
 
-			if len(t.Value) == 0 && t.Type == 0 && c == OpAsterisk {
-				t.Value = append(t.Value, c)
-				t.Type = TCurrentLine
-				continue
-			}
+			if len(t.Value) == 0 && t.Type == 0 {
+				if c == OpAsterisk {
+					t.Value = append(t.Value, c)
+					t.Type = TCurrentLine
+					mode = ins.Relative
+					continue
+				}
 
-			if len(t.Value) == 0 && t.order == 0 {
-				t.order = c
-				continue
+				if c == OpDivision {
+					if order != 0 {
+						err = fmt.Errorf("duplicate order")
+						return
+					}
+					order = OpDivision
+					continue
+				}
 			}
 
 			t.next = &Term{Type: TOperator, Value: []byte{c}, next: &Term{}}
@@ -155,6 +189,7 @@ func parseOperand(b []byte) (mode ins.Mode, root *Term, err error) {
 			t.Value = append(t.Value, c)
 		}
 	}
+
 	switch indirect {
 	case uint16('X')<<8 | indirectFlag:
 		mode = ins.IndirectX
