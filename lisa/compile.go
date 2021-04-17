@@ -1,63 +1,89 @@
 package lisa
 
 import (
+	"fmt"
 	"go6502/ins"
 	"io"
+	"log"
+	"strings"
 )
 
+type Addr struct {
+	Mode ins.Mode
+	Pos  int32
+}
+
+type Prog struct {
+	Stmt    *Stmt // origin statement
+	Next    *Prog
+	Addr    Addr
+	Op      byte
+	Operand uint16
+	Done    bool
+}
+
 type Compiler struct {
-	OL     []*Obj //object list
+	Labels map[string]*Prog //symbol table
+	Const  map[string]uint16
+	first  *Prog
 	Origin uint16
 }
 
-type Obj struct {
-	stmt *Stmt
-	ins  ins.Ins
-	op   uint16
-	done bool
-}
-
-func Compile(sl []*Stmt, of io.Writer) (err error) {
-
-	c := &Compiler{}
-	// clear all comment , implied
+func (c *Compiler) init(sl []*Stmt) (err error) {
+	// clear all comment, build symbol table, guess prog first time
+	var prev *Prog
 	for _, s := range sl {
 		if s.Mnemonic == 0 {
 			continue
 		}
 
-		obj := &Obj{stmt: s}
-		c.OL = append(c.OL, obj)
-
-		i := ins.GetNameTable(obj.stmt.Mnemonic.String(), ins.Implied)
-		if i.Mode == ins.Implied && i.Bytes == 1 {
-			obj.ins = i
-			continue
+		p := &Prog{
+			Stmt: s,
 		}
-		c.evalue(obj)
+		if prev != nil {
+			prev.Next = p
+		}
+		prev = p
+
+		if c.first == nil {
+			c.first = p
+		}
+
+		if s.Label != "" && !strings.HasPrefix(s.Label, "^") {
+			c.Labels[s.Label] = p
+		}
+		if s.Mode != 0 {
+			// if instruction select a mode force prog to use it
+			p.Addr.Mode = s.Mode
+		}
+
+		i := ins.GetNameTable(p.Stmt.Mnemonic.String(), ins.Implied)
+		if i.Bytes == 1 {
+			if s.Oper != "" {
+				err = fmt.Errorf("implied instruction has operand")
+				return
+			}
+			p.Op = i.Op
+			p.Addr.Mode = ins.Implied
+			p.Done = true
+		}
+	}
+	for p := c.first; p != nil; p = p.Next {
+		log.Println("init:", p)
 	}
 	return
 }
 
-func (c *Compiler) evalue(obj *Obj) (err error) {
-	if obj.done {
+func Compile(sl []*Stmt, of io.Writer) (err error) {
+
+	c := &Compiler{
+		Labels: make(map[string]*Prog),
+	}
+
+	err = c.init(sl)
+	if err != nil {
 		return
 	}
 
-	s := obj.stmt
-	if s.Expr == nil {
-		return s.NE("expecting operand, got null")
-	}
-
-	if s.Expr.next == nil {
-		switch s.Expr.Type {
-		case THex, TBinary, TDecimal:
-			obj.op, err = s.Expr.Uint16()
-			return
-		case TOperator:
-			return s.NE("only operator left")
-		case TGTLabel:
-		}
-	}
 	return
 }

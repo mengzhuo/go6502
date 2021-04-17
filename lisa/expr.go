@@ -20,6 +20,7 @@ const (
 	TCurrentLine
 	TLSLabel
 	TGTLabel
+	TRaw
 )
 
 // RIGHT -> LEFT

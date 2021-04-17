@@ -162,6 +162,12 @@ func parse(il []*Stmt) (err error) {
 			continue
 		}
 
+		switch s.Mnemonic {
+		case ASC, STR, BYT, DA:
+			s.Expr = &Term{Type: TRaw, Value: []byte(s.Oper)}
+			continue
+		}
+
 		s.Mode, s.Expr, s.Order, err = parseOperand([]byte(s.Oper))
 		if err != nil {
 			el = append(el, fmt.Errorf("Line:%d %s", s.Line, err))
@@ -230,8 +236,18 @@ func lexing(l *Stmt, t []byte) (err error) {
 			if i == -1 {
 				i = len(t)
 			}
+
 			var w []byte
-			w, t = t[:i], t[i:]
+			// XXX How to do better ?
+			if l.Mnemonic == ASC || l.Mnemonic == STR {
+				w, t, err = lookForQuote(t)
+				if err != nil {
+					return l.NE(err.Error())
+				}
+			} else {
+				w, t = t[:i], t[i:]
+			}
+
 			if l.Label == "" {
 				err = l.processLabel(w)
 				continue
@@ -240,6 +256,7 @@ func lexing(l *Stmt, t []byte) (err error) {
 				err = l.handleMnemonic(w)
 				continue
 			}
+
 			if l.Oper == "" {
 				l.Oper = string(w)
 			}
@@ -273,5 +290,26 @@ func (l *Stmt) handleMnemonic(b []byte) (err error) {
 		return fmt.Errorf("invalid mnemonic %s", string(b))
 	}
 	l.Mnemonic = m
+	return
+}
+
+func lookForQuote(t []byte) (w, r []byte, err error) {
+	if len(t) < 2 {
+		err = fmt.Errorf("quotation must more than 2")
+		return
+	}
+	start := t[0]
+	switch start {
+	case '\'', '"':
+	default:
+		err = fmt.Errorf("looking for quota, got: %s ", string(t))
+		return
+	}
+	l := bytes.LastIndexByte(t[1:], start)
+	if l == -1 {
+		err = fmt.Errorf("can't find matched start: %s", string(start))
+		return
+	}
+	w, r = t[1:l+1], t[l+2:]
 	return
 }

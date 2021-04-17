@@ -17,11 +17,12 @@ func _() {
 	_ = x[TCurrentLine-7]
 	_ = x[TLSLabel-8]
 	_ = x[TGTLabel-9]
+	_ = x[TRaw-10]
 }
 
-const _TermType_name = "LabelOperatorHexDecimalBinaryAsciiCurrentLineLSLabelGTLabel"
+const _TermType_name = "LabelOperatorHexDecimalBinaryAsciiCurrentLineLSLabelGTLabelRaw"
 
-var _TermType_index = [...]uint8{0, 5, 13, 16, 23, 29, 34, 45, 52, 59}
+var _TermType_index = [...]uint8{0, 5, 13, 16, 23, 29, 34, 45, 52, 59, 62}
 
 func (i TermType) String() string {
 	i -= 1
