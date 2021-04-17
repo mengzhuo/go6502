@@ -6,7 +6,7 @@ import (
 	"bytes"
 	"fmt"
 	"go6502/ins"
-	"os"
+	"io"
 	"strings"
 )
 
@@ -38,6 +38,7 @@ func init() {
 	for i := ADC; i <= USR; i++ {
 		mnemonicMap[i.String()] = i
 	}
+	mnemonicMap["="] = EQU
 }
 
 type Stmt struct {
@@ -188,8 +189,8 @@ func parse(il []*Stmt) (err error) {
 	return elToError(el)
 }
 
-func Parse(r *os.File) (il []*Stmt, err error) {
-	sc := bufio.NewScanner(r)
+func Parse(rd io.Reader) (il []*Stmt, err error) {
+	sc := bufio.NewScanner(rd)
 	for ln := 1; sc.Scan(); ln++ {
 		t := sc.Bytes()
 		if len(t) == 0 || len(bytes.TrimSpace(t)) == 0 {
@@ -267,7 +268,7 @@ func (l *Stmt) processLabel(b []byte) (err error) {
 }
 
 func (l *Stmt) handleMnemonic(b []byte) (err error) {
-	if len(b) < 2 || len(b) > 3 {
+	if len(b) > 3 {
 		return fmt.Errorf("invalid mnemonic %s", string(b))
 	}
 	b = bytes.ToUpper(b)
