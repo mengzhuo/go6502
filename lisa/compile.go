@@ -36,6 +36,7 @@ func Compile(sl []*Stmt, of io.Writer) (err error) {
 		}
 		c.evalue(obj)
 	}
+	return
 }
 
 func (c *Compiler) evalue(obj *Obj) (err error) {
@@ -52,33 +53,11 @@ func (c *Compiler) evalue(obj *Obj) (err error) {
 		switch s.Expr.Type {
 		case THex, TBinary, TDecimal:
 			obj.op, err = s.Expr.Uint16()
-			if err == nil {
-				delete(c.Pending, l)
-			}
 			return
 		case TOperator:
 			return s.NE("only operator left")
 		case TGTLabel:
-			for _, to := range s.OL {
-
-			}
 		}
 	}
 	return
-}
-
-func (c *Compiler) round() (err error) {
-	el := []error{}
-
-	for k := range c.Pending {
-		if len(el) > 10 {
-			break
-		}
-		err = c.evalue(k)
-		if err != nil {
-			el = append(el, err)
-		}
-	}
-
-	return elToError(el)
 }

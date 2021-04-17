@@ -87,6 +87,7 @@ func checkLabels(il []*Stmt) (err error) {
 end:
 	// find Label
 	for i, s := range il {
+	next:
 		for t := s.Expr; t != nil; t = t.next {
 			if len(el) > 10 {
 				el = append(el, fmt.Errorf("too many errors"))
@@ -94,36 +95,27 @@ end:
 			}
 			switch t.Type {
 			case TLabel:
-				ls, ok := lt[string(t.Value)]
-				if !ok {
+				if _, ok := lt[string(t.Value)]; !ok {
 					el = append(el, s.NE("can't find regular label:%s", string(t.Value)))
-					continue
 				}
-				t.label = ls
 
 			case TLSLabel:
 				tl := il[:i]
 				for j := len(tl) - 1; j >= 0; j-- {
 					jt := tl[j]
 					if strings.HasPrefix(jt.Label, "^") && jt.Label[1:] == string(t.Value) {
-						t.label = jt
-						break
+						break next
 					}
 				}
-				if t.label == nil {
-					el = append(el, s.NE("can't find local label:%s", string(t.Value)))
-				}
+				el = append(el, s.NE("can't find local label:%s", string(t.Value)))
 
 			case TGTLabel:
 				for _, jt := range il[i:] {
 					if strings.HasPrefix(jt.Label, "^") && jt.Label[1:] == string(t.Value) {
-						t.label = jt
-						break
+						break next
 					}
 				}
-				if t.label == nil {
-					el = append(el, s.NE("can't find local label:%s", string(t.Value)))
-				}
+				el = append(el, s.NE("can't find local label:%s", string(t.Value)))
 			}
 		}
 	}

@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"go6502/lisa"
+	"log"
 	"os"
 	"path/filepath"
 )
@@ -17,6 +18,7 @@ var (
 func main() {
 	flag.Parse()
 	if *in == "" {
+		log.Println("input file not found")
 		flag.Usage()
 		return
 	}

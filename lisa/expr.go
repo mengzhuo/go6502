@@ -28,7 +28,6 @@ type Term struct {
 	Type     TermType
 	operator byte
 	Value    []byte
-	label    *Stmt
 }
 
 func (t *Term) Uint16() (u uint16, err error) {
