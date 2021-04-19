@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"go6502/ins"
 	"strconv"
+	"strings"
 )
 
 type TermType byte
@@ -23,12 +24,27 @@ const (
 	TRaw
 )
 
+type Expression []*Term
+
+func (e Expression) String() string {
+	if len(e) == 0 {
+		return "<EMPTY>"
+	}
+	var buf strings.Builder
+	for _, t := range e {
+		buf.WriteString(t.String())
+		buf.WriteByte(' ')
+	}
+	return buf.String()
+}
+
 // RIGHT -> LEFT
 type Term struct {
-	next     *Term
 	Type     TermType
-	operator byte
+	next     *Term
 	Value    []byte
+	Oprand   uint16
+	Resolved bool
 }
 
 func (t *Term) Uint16() (u uint16, err error) {
@@ -44,12 +60,11 @@ func (t *Term) Uint16() (u uint16, err error) {
 	default:
 		err = fmt.Errorf("unsupported:%q", t.Value)
 	}
-
-	if err != nil {
-		return
-	}
-
 	u = uint16(u64)
+	if err == nil {
+		t.Resolved = true
+		t.Oprand = u
+	}
 	return
 }
 
@@ -57,17 +72,17 @@ func (t *Term) String() string {
 	if t.Type == TOperator {
 		return string(t.Value)
 	}
-	return fmt.Sprintf("%s %s", t.Type, string(t.Value))
+	return fmt.Sprintf("<%s %s>", t.Type, string(t.Value))
 }
 
 // Tokenize
-func parseOperand(b []byte) (mode ins.Mode, root *Term, order byte, err error) {
+func parseOperand(b []byte) (mode ins.Mode, ae Expression, order byte, err error) {
 	const (
 		zeroPage     uint16 = 1
 		indirectFlag uint16 = 4
 	)
 
-	root = &Term{}
+	root := &Term{}
 	t := root
 	indirect := zeroPage // (:2 ):4
 
@@ -145,7 +160,6 @@ func parseOperand(b []byte) (mode ins.Mode, root *Term, order byte, err error) {
 					continue
 				}
 			}
-
 			t.next = &Term{Type: TOperator, Value: []byte{c}, next: &Term{}}
 			t = t.next.next
 		case OpHex:
@@ -203,6 +217,10 @@ func parseOperand(b []byte) (mode ins.Mode, root *Term, order byte, err error) {
 		mode = ins.ZeroPageY
 	case 2:
 		err = fmt.Errorf("bracket not closed")
+	}
+
+	for e := root; e != nil; e = e.next {
+		ae = append(ae, e)
 	}
 
 	return

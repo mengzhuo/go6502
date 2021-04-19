@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"go6502/ins"
 	"io"
-	"log"
 	"strings"
 )
 
@@ -23,10 +22,15 @@ type Prog struct {
 }
 
 type Compiler struct {
-	Labels map[string]*Prog //symbol table
-	Const  map[string]uint16
-	first  *Prog
-	Origin uint16
+	Labels  map[string]*Prog //symbol table
+	Symbols map[string]*Prog
+	first   *Prog
+	Origin  uint16
+}
+
+func (c *Compiler) evalueExpr(t *Term) (err error) {
+
+	return
 }
 
 func (c *Compiler) init(sl []*Stmt) (err error) {
@@ -68,9 +72,6 @@ func (c *Compiler) init(sl []*Stmt) (err error) {
 			p.Done = true
 		}
 	}
-	for p := c.first; p != nil; p = p.Next {
-		log.Println("init:", p)
-	}
 	return
 }
 
@@ -84,6 +85,16 @@ func Compile(sl []*Stmt, of io.Writer) (err error) {
 	if err != nil {
 		return
 	}
+	err = c.resovleLabel()
+	if err != nil {
+		return
+	}
 
+	return
+}
+
+func (c *Compiler) resovleLabel() (err error) {
+	// resolve easy LABELS
+	// topological sorting
 	return
 }

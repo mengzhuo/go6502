@@ -48,7 +48,7 @@ type Stmt struct {
 	Oper     string
 	Comment  string
 	Order    byte
-	Expr     *Term
+	Expr     Expression
 	Mode     ins.Mode
 }
 
@@ -87,8 +87,11 @@ func checkLabels(il []*Stmt) (err error) {
 end:
 	// find Label
 	for i, s := range il {
+		if len(s.Expr) == 0 {
+			continue
+		}
 	next:
-		for t := s.Expr; t != nil; t = t.next {
+		for t := s.Expr[0]; t != nil; t = t.next {
 			if len(el) > 10 {
 				el = append(el, fmt.Errorf("too many errors"))
 				break end
@@ -138,8 +141,8 @@ func semantic(il []*Stmt) (err error) {
 }
 
 func (l *Stmt) String() string {
-	return fmt.Sprintf("[%4d] L:%-8s I:%s O[%s]%s M:%s %s", l.Line, l.Label, l.Mnemonic,
-		string(l.Order), l.Oper, l.Mode, l.Comment)
+	return fmt.Sprintf("[%4d] L:%-8s %s O[%s]%s M:%s %s", l.Line, l.Label, l.Mnemonic,
+		string(l.Order), l.Expr, l.Mode, l.Comment)
 }
 
 func elToError(el []error) (err error) {
@@ -164,7 +167,7 @@ func parse(il []*Stmt) (err error) {
 
 		switch s.Mnemonic {
 		case ASC, STR, BYT, DA:
-			s.Expr = &Term{Type: TRaw, Value: []byte(s.Oper)}
+			s.Expr = Expression{&Term{Type: TRaw, Value: []byte(s.Oper)}}
 			continue
 		}
 
@@ -176,7 +179,10 @@ func parse(il []*Stmt) (err error) {
 				break
 			}
 		}
-		err = syntaxCheck(s.Expr)
+		if len(s.Expr) == 0 {
+			continue
+		}
+		err = syntaxCheck(s.Expr[0])
 		if err != nil {
 			el = append(el, fmt.Errorf("Line:%d %s", s.Line, err))
 			if len(el) > 10 {
