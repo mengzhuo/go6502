@@ -58,7 +58,7 @@ func load(in, of string) (err error) {
 		}
 	}
 
-	outf, err := os.OpenFile(of, os.O_CREATE|os.O_WRONLY, 0700)
+	outf, err := os.OpenFile(of, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0700)
 	if err != nil {
 		return
 	}

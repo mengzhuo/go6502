@@ -41,6 +41,7 @@ func (e Expression) String() string {
 // RIGHT -> LEFT
 type Term struct {
 	Type     TermType
+	Stmt     *Stmt
 	next     *Term
 	Value    []byte
 	Oprand   uint16
@@ -58,7 +59,7 @@ func (t *Term) Uint16() (u uint16, err error) {
 	case TDecimal:
 		u64, err = strconv.ParseUint(string(t.Value), 10, 16)
 	default:
-		err = fmt.Errorf("unsupported:%q", t.Value)
+		return
 	}
 	u = uint16(u64)
 	if err == nil {

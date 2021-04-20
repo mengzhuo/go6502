@@ -182,6 +182,9 @@ func parse(il []*Stmt) (err error) {
 		if len(s.Expr) == 0 {
 			continue
 		}
+		for _, t := range s.Expr {
+			t.Stmt = s
+		}
 		err = syntaxCheck(s.Expr[0])
 		if err != nil {
 			el = append(el, fmt.Errorf("Line:%d %s", s.Line, err))

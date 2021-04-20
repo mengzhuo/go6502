@@ -3,7 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
-	"go6502/a65"
+	"go6502/lisa"
 	"io/ioutil"
 	"log"
 )
@@ -36,12 +36,12 @@ func main() {
 		to = from
 	}
 
-	sl, err := a65.Disasm(d[from:to])
+	sl, err := lisa.Disasm(d[from:to])
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	for _, s := range sl {
-		fmt.Printf("0x%04x %v\n", s.Offset, s)
+		fmt.Println(s.Mnemonic, s.Oper)
 	}
 }
