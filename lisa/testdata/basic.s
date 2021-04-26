@@ -40,4 +40,3 @@ START	EQU $8000
 ^9 STA <0
 ^7 BIT $C010
 	BRK
-	ASC "This is good"

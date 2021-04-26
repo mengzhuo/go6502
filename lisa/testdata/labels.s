@@ -29,5 +29,5 @@ L7 = $3
 	BRK
 	RTS
 	JMP	(L7)
-	LDA	$123
+	LDA	/$123
 	LDA	$23,X

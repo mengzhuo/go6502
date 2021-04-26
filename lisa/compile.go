@@ -21,7 +21,11 @@ type Symbol struct {
 	Next    *Symbol
 	Stmt    *Stmt
 	Operand uint16
-	PC      uint16
+	Address uint16
+}
+
+func (s *Symbol) String() string {
+	return fmt.Sprintf("%s A:0x%04X O:0x%04X", s.Stmt, s.Address, s.Operand)
 }
 
 type Compiler struct {
@@ -67,6 +71,7 @@ func (c *Compiler) processPseudo(sym *Symbol) {
 			return
 		}
 		c.Symbols["_ORG"] = sym
+		c.PC = sym.Operand
 		return
 	}
 
@@ -79,9 +84,9 @@ func (c *Compiler) processPseudo(sym *Symbol) {
 
 	switch s.Mnemonic {
 	case EPZ:
-		sym.Stmt.Mode = ModeZeroPage
+		sym.Stmt.Mode = ins.ZeroPage
 	case EQU:
-		sym.Stmt.Mode = ModeAbsolute
+		sym.Stmt.Mode = ins.Absolute
 	case STR, ASC, HEX, OBJ:
 		c.errorf("unsupported mnemonic (yet)", s.Mnemonic)
 	}
@@ -137,8 +142,8 @@ func Compile(sl []*Stmt, of io.Writer) (err error) {
 		Symbols: make(map[string]*Symbol),
 	}
 	c.buildSymbolTable(sl)
+	c.determineAddress()
 	c.evalueLabel()
-	c.encode()
 	if c.errCount > 0 {
 		err = fmt.Errorf("compile failed")
 	}
@@ -148,7 +153,7 @@ func Compile(sl []*Stmt, of io.Writer) (err error) {
 	return
 }
 
-func (c *Compiler) encode() (err error) {
+func (c *Compiler) determineAddress() (err error) {
 
 	for _, p := range c.target {
 		i := ins.GetNameTable(p.Stmt.Mnemonic.String(), p.Stmt.Mode.String())
@@ -160,15 +165,15 @@ func (c *Compiler) encode() (err error) {
 			c.errorf(p.Stmt.NE("unsupported bytes length:%d", i.Bytes).Error())
 			continue
 		}
-
-		p.PC = c.PC
+		p.Address = c.PC
 		c.PC += uint16(i.Bytes)
-
 	}
 	return
 }
 
 func (c *Compiler) evalueLabel() {
+	// look up for absolute term
+
 }
 
 func (c *Compiler) evalueExpr(p *Symbol) {
