@@ -3,7 +3,6 @@ package lisa
 import (
 	"bytes"
 	"fmt"
-	"go6502/ins"
 	"strconv"
 	"strings"
 )
@@ -77,11 +76,21 @@ func (t *Term) String() string {
 }
 
 // Tokenize
-func parseOperand(b []byte) (mode ins.Mode, ae Expression, order byte, err error) {
+func parseOperand(b []byte) (mode Mode, ae Expression, order byte, err error) {
 	const (
 		zeroPage     uint16 = 1
 		indirectFlag uint16 = 4
 	)
+	if len(b) == 0 {
+		// at least is immediate
+		mode = ModeImmediate
+		return
+	}
+
+	if len(b) == 1 && (b[0] == 'A' || b[0] == 'a') {
+		mode = ModeAccumulator
+		return
+	}
 
 	root := &Term{}
 	t := root
@@ -148,7 +157,7 @@ func parseOperand(b []byte) (mode ins.Mode, ae Expression, order byte, err error
 				if c == OpAsterisk {
 					t.Value = append(t.Value, c)
 					t.Type = TCurrentLine
-					mode = ins.Relative
+					mode = ModeRelative
 					continue
 				}
 
@@ -207,15 +216,15 @@ func parseOperand(b []byte) (mode ins.Mode, ae Expression, order byte, err error
 
 	switch indirect {
 	case uint16('X')<<8 | indirectFlag:
-		mode = ins.IndirectX
+		mode = ModeIndirectX
 	case uint16('Y')<<8 | indirectFlag:
-		mode = ins.IndirectY
+		mode = ModeIndirectY
 	case indirectFlag:
-		mode = ins.Indirect
+		mode = ModeIndirect
 	case zeroPage | uint16('X')<<8:
-		mode = ins.ZeroPageX
+		mode = ModeZeroPageX
 	case zeroPage | uint16('Y')<<8:
-		mode = ins.ZeroPageY
+		mode = ModeZeroPageY
 	case 2:
 		err = fmt.Errorf("bracket not closed")
 	}

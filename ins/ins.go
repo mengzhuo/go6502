@@ -10,10 +10,10 @@ import (
 // http://obelisk.me.uk/6502/instructions.html
 
 //go:generate stringer -type=Mode
-type Mode uint8
+type Mode uint16
 
 const (
-	Implied Mode = 1 + iota
+	Implied Mode = 1 << iota
 	Accumulator
 	Immediate
 	ZeroPage
@@ -126,7 +126,7 @@ var (
 	nameCacheGen = &sync.Once{}
 )
 
-func GetNameTable(name string, mode Mode) Ins {
+func GetNameTable(name string, mode string) Ins {
 	nameCacheGen.Do(func() {
 		for idx := range Table {
 			i := Table[idx]
@@ -136,7 +136,7 @@ func GetNameTable(name string, mode Mode) Ins {
 	name = strings.ToUpper(name)
 
 	for _, i := range nameCache[name] {
-		if i.Mode == mode {
+		if i.Mode.String() == mode {
 			return i
 		}
 	}

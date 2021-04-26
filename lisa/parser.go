@@ -5,7 +5,6 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
-	"go6502/ins"
 	"io"
 	"strings"
 )
@@ -49,7 +48,7 @@ type Stmt struct {
 	Comment  string
 	Order    byte
 	Expr     Expression
-	Mode     ins.Mode
+	Mode     Mode
 }
 
 func (s *Stmt) NE(f string, args ...interface{}) error {
@@ -263,6 +262,7 @@ func lexing(l *Stmt, t []byte) (err error) {
 			}
 			if l.Mnemonic == 0 {
 				err = l.handleMnemonic(w)
+				l.Mode = ModeImplied
 				continue
 			}
 

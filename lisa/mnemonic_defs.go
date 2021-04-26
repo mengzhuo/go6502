@@ -19,6 +19,7 @@ const (
 	CLC
 	CLD
 	CLI
+	CLV
 	CMP
 	CPX
 	CPY
@@ -122,3 +123,22 @@ const (
 	FI
 	USR
 )
+
+func isPseudo(m Mnemonic) bool {
+	switch m {
+	case OBJ, ORG, EPZ, EQU, ASC, STR, HEX, LST, NLS, DCM,
+		ICL, END, ADR, DCI, INV, BLK, DFS, PAG, PAU, BYT,
+		HBY, DBY, LET, TTL, NOG, GEN, PHS, DPH, DA, IF, EL, FI, USR:
+		return true
+	}
+	return false
+}
+
+func isJump(m Mnemonic) bool {
+	switch m {
+	case BCC, BCS, BEQ, BNE, BNC, BPL, JMP, JSR, RTS, BTR, BFL, BGE, BLT, BMI,
+		BRK, BVC, BVS:
+		return true
+	}
+	return false
+}

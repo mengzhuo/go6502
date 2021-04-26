@@ -32,8 +32,8 @@ func main() {
 		from = len(d)
 	}
 	to := *toI
-	if to < from {
-		to = from
+	if to > len(d) {
+		to = len(d)
 	}
 
 	sl, err := lisa.Disasm(d[from:to])

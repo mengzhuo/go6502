@@ -10,27 +10,40 @@ func _() {
 	var x [1]struct{}
 	_ = x[Implied-1]
 	_ = x[Accumulator-2]
-	_ = x[Immediate-3]
-	_ = x[ZeroPage-4]
-	_ = x[ZeroPageX-5]
-	_ = x[ZeroPageY-6]
-	_ = x[Relative-7]
-	_ = x[Absolute-8]
-	_ = x[AbsoluteX-9]
-	_ = x[AbsoluteY-10]
-	_ = x[Indirect-11]
-	_ = x[IndirectX-12]
-	_ = x[IndirectY-13]
+	_ = x[Immediate-4]
+	_ = x[ZeroPage-8]
+	_ = x[ZeroPageX-16]
+	_ = x[ZeroPageY-32]
+	_ = x[Relative-64]
+	_ = x[Absolute-128]
+	_ = x[AbsoluteX-256]
+	_ = x[AbsoluteY-512]
+	_ = x[Indirect-1024]
+	_ = x[IndirectX-2048]
+	_ = x[IndirectY-4096]
 }
 
 const _Mode_name = "ImpliedAccumulatorImmediateZeroPageZeroPageXZeroPageYRelativeAbsoluteAbsoluteXAbsoluteYIndirectIndirectXIndirectY"
 
-var _Mode_index = [...]uint8{0, 7, 18, 27, 35, 44, 53, 61, 69, 78, 87, 95, 104, 113}
+var _Mode_map = map[Mode]string{
+	1:    _Mode_name[0:7],
+	2:    _Mode_name[7:18],
+	4:    _Mode_name[18:27],
+	8:    _Mode_name[27:35],
+	16:   _Mode_name[35:44],
+	32:   _Mode_name[44:53],
+	64:   _Mode_name[53:61],
+	128:  _Mode_name[61:69],
+	256:  _Mode_name[69:78],
+	512:  _Mode_name[78:87],
+	1024: _Mode_name[87:95],
+	2048: _Mode_name[95:104],
+	4096: _Mode_name[104:113],
+}
 
 func (i Mode) String() string {
-	i -= 1
-	if i >= Mode(len(_Mode_index)-1) {
-		return "Mode(" + strconv.FormatInt(int64(i+1), 10) + ")"
+	if str, ok := _Mode_map[i]; ok {
+		return str
 	}
-	return _Mode_name[_Mode_index[i]:_Mode_index[i+1]]
+	return "Mode(" + strconv.FormatInt(int64(i), 10) + ")"
 }

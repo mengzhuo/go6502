@@ -4,178 +4,175 @@ import (
 	"fmt"
 	"go6502/ins"
 	"io"
-	"strings"
+	"log"
 )
 
-type Prog struct {
-	Stmt *Stmt // origin statement
+type SType uint8
 
-	// for final linkage
-	Done    bool
-	Ins     ins.Ins
+const (
+	literal SType = iota + 1
+	pseudo
+	origin
+)
+
+type Symbol struct {
+	Name    string
+	Prev    *Symbol
+	Next    *Symbol
+	Stmt    *Stmt
 	Operand uint16
-	Addr    uint16
+	PC      uint16
 }
 
 type Compiler struct {
-	Labels  map[string]*Prog //symbol table
-	Symbols []*Prog
-	Origin  uint16
+	Symbols     map[string]*Symbol
+	target      []*Symbol
+	first       *Symbol
+	PC          uint16
+	errCount    int
+	warnAsError bool
 }
 
-func (c *Compiler) evalueExpr(ex Expression) (err error) {
-	for i := len(ex) - 1; i >= 0; i++ {
-		e := ex[i]
-		switch e.Type {
-		case THex, TDecimal, TBinary:
-		}
+func (c *Compiler) errorf(f string, args ...interface{}) {
+	c.errCount++
+	if c.errCount > 10 {
+		log.Fatal("too many errors")
 	}
-	return
+	log.Printf(f, args)
 }
 
-func (c *Compiler) init(sl []*Stmt) (err error) {
+func (c *Compiler) warnf(f string, args ...interface{}) {
+	if c.warnAsError {
+		c.errorf(f, args...)
+		return
+	}
+	log.Printf(f, args)
+}
+
+func (c *Compiler) processPseudo(sym *Symbol) {
+
+	s := sym.Stmt
+	var err error
+	if s.Mnemonic == ORG {
+		if _, ok := c.Symbols["_ORG"]; ok {
+			c.warnf("duplicate ORG found, replaced original")
+		}
+		if len(s.Expr) != 1 {
+			c.errorf("ORG must be literal")
+			return
+		}
+
+		if sym.Operand, err = s.Expr[0].Uint16(); err != nil {
+			c.errorf("get ORG failed:", err)
+			return
+		}
+		c.Symbols["_ORG"] = sym
+		return
+	}
+
+	if s.Label == "" {
+		c.errorf(s.NE("Pseudo require label").Error())
+		return
+	}
+
+	c.Symbols[s.Label] = sym
+
+	switch s.Mnemonic {
+	case EPZ:
+		sym.Stmt.Mode = ModeZeroPage
+	case EQU:
+		sym.Stmt.Mode = ModeAbsolute
+	case STR, ASC, HEX, OBJ:
+		c.errorf("unsupported mnemonic (yet)", s.Mnemonic)
+	}
+}
+
+func isLocalLabel(s string) bool {
+	if s == "" {
+		return false
+	}
+	return s[0] == '^'
+}
+
+func (c *Compiler) buildSymbolTable(sl []*Stmt) {
+	var prev *Symbol
 	// clear all comment, build symbol table, guess prog first time
 	for _, s := range sl {
+		sym := &Symbol{
+			Stmt: s,
+		}
 		if s.Mnemonic == 0 {
 			continue
 		}
 
-		p := &Prog{
-			Stmt: s,
+		if s.Label != "" && !isLocalLabel(s.Label) {
+			c.Symbols[s.Label] = sym
+			sym.Name = s.Label
 		}
-		c.Symbols = append(c.Symbols, p)
-		if s.Label != "" && !strings.HasPrefix(s.Label, "^") {
-			c.Labels[s.Label] = p
+
+		if isPseudo(s.Mnemonic) {
+			c.processPseudo(sym)
+			continue
 		}
+
+		if prev != nil {
+			prev.Next = sym
+			sym.Prev = prev
+		}
+		prev = sym
+
+		if c.first == nil {
+			c.first = sym
+		}
+
+		c.target = append(c.target, sym)
 	}
+
 	return
 }
 
 func Compile(sl []*Stmt, of io.Writer) (err error) {
 
 	c := &Compiler{
-		Labels: make(map[string]*Prog),
+		Symbols: make(map[string]*Symbol),
 	}
-
-	err = c.init(sl)
-	if err != nil {
-		return
+	c.buildSymbolTable(sl)
+	c.evalueLabel()
+	c.encode()
+	if c.errCount > 0 {
+		err = fmt.Errorf("compile failed")
 	}
-	resolved := false
-	limit := 10
-	i := 0
-	for ; !resolved && i < limit; i++ {
-		resolved, err = c.resovleEqualLabel()
-		if err != nil {
-			return
-		}
+	for k, s := range c.target {
+		fmt.Println(k, s)
 	}
-	if i == limit {
-		err = fmt.Errorf("over resolve limit")
-		return
-	}
-	err = c.Evalue()
-	if err != nil {
-		return
-	}
-	fmt.Println("Finaly step")
-	for _, p := range c.Symbols {
-		fmt.Println(p.Stmt)
-	}
-	if err = c.encode(); err != nil {
-		return
-	}
-	err = c.link(of)
 	return
 }
 
 func (c *Compiler) encode() (err error) {
-	// first we have to look for ORG
-	for _, p := range c.Symbols {
-		if p.Stmt.Mnemonic != ORG {
+
+	for _, p := range c.target {
+		i := ins.GetNameTable(p.Stmt.Mnemonic.String(), p.Stmt.Mode.String())
+		if i.Mode == 0 {
+			c.errorf("can't find instruction:%v ", p.Stmt)
 			continue
 		}
-		c.Origin = p.Operand
-		break
-	}
-	for _, p := range c.Symbols {
-		switch p.Stmt.Mnemonic {
-		case STR, ASC, EQU, EPZ:
+		if i.Bytes < 1 || i.Bytes > 3 {
+			c.errorf(p.Stmt.NE("unsupported bytes length:%d", i.Bytes).Error())
 			continue
 		}
 
-		i := ins.GetNameTable(p.Stmt.Mnemonic.String(), ins.Implied)
-		if i.Bytes == 1 {
-			if p.Stmt.Oper != "" {
-				err = fmt.Errorf("implied instruction has operand")
-				return
-			}
-			p.Ins = i
-			p.Done = true
-			p.Addr = c.Origin
-			c.Origin += uint16(i.Bytes)
-			continue
-		}
+		p.PC = c.PC
+		c.PC += uint16(i.Bytes)
+
 	}
 	return
 }
 
-func (c *Compiler) link(of io.Writer) (err error) {
-	// XXX sort obj by addr?
-	for _, p := range c.Symbols {
-		if !p.Done {
-			continue
-		}
-		_, err = of.Write([]byte{p.Ins.Op})
-		if err != nil {
-			return
-		}
-		switch p.Ins.Bytes {
-		case 1:
-		case 2:
-			_, err = of.Write([]byte{uint8(0xff & p.Operand)})
-		case 3:
-			buf := []byte{byte(p.Operand & 0xff), byte(p.Operand >> 8)}
-			_, err = of.Write(buf)
-		default:
-			err = p.Stmt.NE("unsupported bytes length:%d", p.Ins.Bytes)
-		}
-		if err != nil {
-			return
-		}
-	}
-	return
+func (c *Compiler) evalueLabel() {
 }
 
-// resovleLabel XXX should use toplogical sort first
-func (c *Compiler) resovleEqualLabel() (resolved bool, err error) {
-	resolved = true
-	for _, p := range c.Symbols {
-		var ne Expression
-		for _, t := range p.Stmt.Expr {
-			if t.Type != TLabel {
-				ne = append(ne, t)
-				continue
-			}
-			tls, ok := c.Labels[string(t.Value)]
-			if !ok {
-				err = p.Stmt.NE("can't find label :%s", string(t.Value))
-				return
-			}
-			switch tls.Stmt.Mnemonic {
-			case EQU, EPZ:
-				resolved = false
-				ne = append(ne, tls.Stmt.Expr...)
-			default:
-				ne = append(ne, t)
-			}
-		}
-		p.Stmt.Expr = ne
-	}
-	return
-}
-
-func (c *Compiler) evalue(p *Prog) (err error) {
+func (c *Compiler) evalueExpr(p *Symbol) {
+	var err error
 	ex := p.Stmt.Expr
 	switch len(ex) {
 	case 0:
@@ -183,22 +180,23 @@ func (c *Compiler) evalue(p *Prog) (err error) {
 	case 1:
 		p.Operand, err = ex[0].Uint16()
 		if err != nil {
-			return p.Stmt.NE(err.Error(), ex)
+			c.errorf(err.Error())
 		}
 		return
 	case 2:
-		err = p.Stmt.NE("invalid expression")
+		c.errorf("invalid expression")
 		return
 	default:
 		if (len(ex)-1)%2 != 0 {
-			err = p.Stmt.NE("invalid expression")
+			c.errorf("invalid expression")
 			return
 		}
 	}
+
 	l := len(ex) - 1
 	p.Operand, err = ex[l].Uint16()
 	if err != nil {
-		return p.Stmt.NE(err.Error(), ex)
+		c.errorf(err.Error())
 	}
 	ex = ex[:l]
 
@@ -209,6 +207,7 @@ func (c *Compiler) evalue(p *Prog) (err error) {
 			err = p.Stmt.NE("require operator got:%s", operator)
 			return
 		}
+
 		var x uint16
 		x, err = xt.Uint16()
 		if err != nil {
@@ -236,18 +235,4 @@ func (c *Compiler) evalue(p *Prog) (err error) {
 		}
 	}
 	return
-}
-
-func (c *Compiler) Evalue() (err error) {
-	el := []error{}
-	for _, p := range c.Symbols {
-		if len(el) > 10 {
-			break
-		}
-		err = c.evalue(p)
-		if err != nil {
-			el = append(el, err)
-		}
-	}
-	return elToError(el)
 }
