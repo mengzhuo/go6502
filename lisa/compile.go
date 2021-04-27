@@ -7,14 +7,6 @@ import (
 	"log"
 )
 
-type SType uint8
-
-const (
-	literal SType = iota + 1
-	pseudo
-	origin
-)
-
 type Symbol struct {
 	Name    string
 	Prev    *Symbol
@@ -22,10 +14,11 @@ type Symbol struct {
 	Stmt    *Stmt
 	Operand uint16
 	Address uint16
+	Done    bool
 }
 
 func (s *Symbol) String() string {
-	return fmt.Sprintf("%s A:0x%04X O:0x%04X", s.Stmt, s.Address, s.Operand)
+	return fmt.Sprintf("%s  O:0x%04X A:0x%04X", s.Stmt, s.Operand, s.Address)
 }
 
 type Compiler struct {
@@ -42,7 +35,7 @@ func (c *Compiler) errorf(f string, args ...interface{}) {
 	if c.errCount > 10 {
 		log.Fatal("too many errors")
 	}
-	log.Printf(f, args)
+	log.Printf(f, args...)
 }
 
 func (c *Compiler) warnf(f string, args ...interface{}) {
@@ -56,25 +49,9 @@ func (c *Compiler) warnf(f string, args ...interface{}) {
 func (c *Compiler) processPseudo(sym *Symbol) {
 
 	s := sym.Stmt
-	var err error
 	if s.Mnemonic == ORG {
-		if _, ok := c.Symbols["_ORG"]; ok {
-			c.warnf("duplicate ORG found, replaced original")
-		}
-		if len(s.Expr) != 1 {
-			c.errorf("ORG must be literal")
-			return
-		}
-
-		if sym.Operand, err = s.Expr[0].Uint16(); err != nil {
-			c.errorf("get ORG failed:", err)
-			return
-		}
-		c.Symbols["_ORG"] = sym
-		c.PC = sym.Operand
 		return
 	}
-
 	if s.Label == "" {
 		c.errorf(s.NE("Pseudo require label").Error())
 		return
@@ -83,10 +60,6 @@ func (c *Compiler) processPseudo(sym *Symbol) {
 	c.Symbols[s.Label] = sym
 
 	switch s.Mnemonic {
-	case EPZ:
-		sym.Stmt.Mode = ins.ZeroPage
-	case EQU:
-		sym.Stmt.Mode = ins.Absolute
 	case STR, ASC, HEX, OBJ:
 		c.errorf("unsupported mnemonic (yet)", s.Mnemonic)
 	}
@@ -99,7 +72,44 @@ func isLocalLabel(s string) bool {
 	return s[0] == '^'
 }
 
+func (c *Compiler) expandConst() (change bool) {
+	for _, sym := range c.target {
+		ne := Expression{}
+		for _, t := range sym.Stmt.Expr {
+			if t.Type != TLabel {
+				ne = append(ne, t)
+				continue
+			}
+			ns, ok := c.Symbols[string(t.Value)]
+			if !ok {
+				c.errorf("can't find label:%s", string(t.Value))
+				continue
+			}
+			switch ns.Stmt.Mnemonic {
+			case EPZ:
+				switch sym.Stmt.Mode {
+				case ins.Absolute:
+					sym.Stmt.Mode = ins.ZeroPage
+				case ins.AbsoluteX:
+					sym.Stmt.Mode = ins.ZeroPageX
+				case ins.AbsoluteY:
+					sym.Stmt.Mode = ins.ZeroPageY
+				}
+				fallthrough
+			case EQU:
+				change = true
+				ne = append(ne, ns.Stmt.Expr...)
+			default:
+				ne = append(ne, t)
+			}
+		}
+		sym.Stmt.Expr = ne
+	}
+	return
+}
+
 func (c *Compiler) buildSymbolTable(sl []*Stmt) {
+
 	var prev *Symbol
 	// clear all comment, build symbol table, guess prog first time
 	for _, s := range sl {
@@ -129,6 +139,9 @@ func (c *Compiler) buildSymbolTable(sl []*Stmt) {
 		if c.first == nil {
 			c.first = sym
 		}
+		if isRelative(s.Mnemonic) {
+			sym.Stmt.Mode = ins.Relative
+		}
 
 		c.target = append(c.target, sym)
 	}
@@ -142,20 +155,88 @@ func Compile(sl []*Stmt, of io.Writer) (err error) {
 		Symbols: make(map[string]*Symbol),
 	}
 	c.buildSymbolTable(sl)
-	c.determineAddress()
-	c.evalueLabel()
-	if c.errCount > 0 {
-		err = fmt.Errorf("compile failed")
+	for c.expandConst() {
 	}
+	c.determineAddress()
+	c.evalue()
+	c.encode(of)
 	for k, s := range c.target {
 		fmt.Println(k, s)
 	}
+	if c.errCount > 0 {
+		return fmt.Errorf("compile failed")
+	}
 	return
+}
+
+func (c *Compiler) encode(of io.Writer) {
+	for _, sym := range c.target {
+		stm := sym.Stmt
+		i := ins.GetNameTable(stm.Mnemonic.String(), stm.Mode.String())
+		if i.Mode == 0 {
+			c.errorf("can't find instruction:%v ", stm)
+			continue
+		}
+		if i.Bytes < 1 || i.Bytes > 3 {
+			c.errorf(stm.NE("unsupported bytes length:%d", i.Bytes).Error())
+			continue
+		}
+		buf := make([]byte, i.Bytes)
+		buf[0] = i.Op
+		if i.Bytes == 1 {
+			continue
+		}
+
+		switch i.Mode {
+		case ins.Relative:
+			// op is absolute address
+			ab := int32(sym.Operand)
+			ab -= int32(sym.Address)
+			if ab < -126 || ab > 128 {
+				c.errorf("overflow relative address:%d %d %d", ab, sym.Operand, sym.Address)
+				continue
+			}
+			buf[1] = byte(int8(ab))
+		default:
+			if i.Bytes == 2 {
+				buf[1] = byte(sym.Operand)
+			}
+			if i.Bytes == 3 {
+				buf[1] = byte(0xff & sym.Operand)
+				buf[2] = byte(sym.Operand >> 8)
+			}
+		}
+		n, err := of.Write(buf)
+		if err != nil || n != len(buf) {
+			c.errorf(stm.NE("write data failed:%s %d", err, n).Error())
+			continue
+		}
+	}
 }
 
 func (c *Compiler) determineAddress() (err error) {
 
 	for _, p := range c.target {
+		if p.Stmt.Mnemonic == ORG {
+			if _, ok := c.Symbols["_ORG"]; ok {
+				c.warnf("duplicate ORG found, replaced original")
+			}
+			if len(p.Stmt.Expr) != 1 {
+				c.errorf("ORG must be literal")
+				return
+			}
+
+			if c.PC, err = c.evalueExpr(p); err != nil {
+				c.errorf("get ORG failed:", err)
+				return
+			}
+			c.Symbols["_ORG"] = p
+			continue
+		}
+	}
+
+	for _, p := range c.target {
+
 		i := ins.GetNameTable(p.Stmt.Mnemonic.String(), p.Stmt.Mode.String())
 		if i.Mode == 0 {
 			c.errorf("can't find instruction:%v ", p.Stmt)
@@ -171,41 +252,80 @@ func (c *Compiler) determineAddress() (err error) {
 	return
 }
 
-func (c *Compiler) evalueLabel() {
+func (c *Compiler) evalue() {
+	var err error
 	// look up for absolute term
-
+	for _, s := range c.target {
+		_, err = c.evalueExpr(s)
+		if err != nil {
+			c.errorf("evalue expression failed:%s", err)
+			continue
+		}
+	}
 }
 
-func (c *Compiler) evalueExpr(p *Symbol) {
-	var err error
-	ex := p.Stmt.Expr
-	switch len(ex) {
-	case 0:
-		return
-	case 1:
-		p.Operand, err = ex[0].Uint16()
-		if err != nil {
-			c.errorf(err.Error())
-		}
-		return
-	case 2:
-		c.errorf("invalid expression")
-		return
-	default:
-		if (len(ex)-1)%2 != 0 {
-			c.errorf("invalid expression")
+func (c *Compiler) evalueTerm(sym *Symbol, t *Term) (o uint16, err error) {
+	switch t.Type {
+	case TBinary, TDecimal, THex:
+		return t.Uint16()
+	case TLabel:
+		n := string(t.Value)
+		s, ok := c.Symbols[n]
+		if !ok {
+			err = fmt.Errorf("can't find symbol:%s", n)
 			return
 		}
+		o = s.Address
+		return
+	case TCurrentLine:
+		o = sym.Address
+	case TLSLabel:
+		for ns := sym.Prev; ns != nil; ns = ns.Prev {
+			if ns.Stmt.Label == "" {
+				continue
+			}
+			if ns.Stmt.Label[1:] == string(t.Value) {
+				o = ns.Address
+				return
+			}
+		}
+		err = fmt.Errorf("can't find LSLabel for:%s", string(t.Value))
+	case TGTLabel:
+		for ns := sym.Next; ns != nil; ns = ns.Next {
+			if ns.Stmt.Label == "" {
+				continue
+			}
+			if ns.Stmt.Label[1:] == string(t.Value) {
+				o = ns.Address
+				return
+			}
+		}
+		err = fmt.Errorf("can't find GTLabel for:%s", string(t.Value))
+	default:
+		err = fmt.Errorf("unsupported type:%s", t.Type)
+	}
+	return
+}
+
+func (c *Compiler) evalueExpr(p *Symbol) (o uint16, err error) {
+
+	if p.Done {
+		o = p.Operand
+		return
+	}
+
+	ex := p.Stmt.Expr
+	if len(ex) == 0 {
+		return
 	}
 
 	l := len(ex) - 1
-	p.Operand, err = ex[l].Uint16()
+	p.Operand, err = c.evalueTerm(p, ex[l])
 	if err != nil {
-		c.errorf(err.Error())
+		return
 	}
 	ex = ex[:l]
-
-	// from right to left!!!
+	// NOTE from right to left!!!
 	for i := len(ex) - 1; i >= 0; i -= 2 {
 		xt, operator := ex[i-1], ex[i]
 		if operator.Type != TOperator {
@@ -214,7 +334,7 @@ func (c *Compiler) evalueExpr(p *Symbol) {
 		}
 
 		var x uint16
-		x, err = xt.Uint16()
+		x, err = c.evalueTerm(p, xt)
 		if err != nil {
 			return
 		}
@@ -239,5 +359,7 @@ func (c *Compiler) evalueExpr(p *Symbol) {
 			return
 		}
 	}
+	o = p.Operand
+	p.Done = true
 	return
 }

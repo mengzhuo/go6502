@@ -44,7 +44,6 @@ type Term struct {
 	Stmt     *Stmt
 	next     *Term
 	Value    []byte
-	Oprand   uint16
 	Resolved bool
 }
 
@@ -62,10 +61,6 @@ func (t *Term) Uint16() (u uint16, err error) {
 		return
 	}
 	u = uint16(u64)
-	if err == nil {
-		t.Resolved = true
-		t.Oprand = u
-	}
 	return
 }
 
@@ -233,6 +228,9 @@ func parseOperand(b []byte) (mode ins.Mode, ae Expression, order byte, err error
 		switch order {
 		case '#', '/':
 			mode = ins.Immediate
+		case 0:
+		default:
+			err = fmt.Errorf("invalid order %s", string(order))
 		}
 	case 2:
 		err = fmt.Errorf("bracket not closed")

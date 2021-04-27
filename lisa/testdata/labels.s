@@ -5,7 +5,7 @@ L6 EPZ L2
 L4 = !1
 L5 = $1f
 L3 = L5+L7
-L7 = $3
+L7 EPZ $3
 	CLC
 	CLD
 	CLI
@@ -28,6 +28,8 @@ L7 = $3
 	TYA
 	BRK
 	RTS
-	JMP	(L7)
+	JMP	(L7+!1)
+	LDA	L7+!1
 	LDA	/$123
-	LDA	$23,X
+L8	LDA	$23,X
+	JMP	(L8+1)

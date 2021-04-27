@@ -134,10 +134,10 @@ func isPseudo(m Mnemonic) bool {
 	return false
 }
 
-func isJump(m Mnemonic) bool {
+func isRelative(m Mnemonic) bool {
 	switch m {
-	case BCC, BCS, BEQ, BNE, BNC, BPL, JMP, JSR, RTS, BTR, BFL, BGE, BLT, BMI,
-		BRK, BVC, BVS:
+	case BCC, BCS, BEQ, BNE, BNC, BPL, BTR, BFL, BGE, BLT, BMI,
+		BVC, BVS:
 		return true
 	}
 	return false

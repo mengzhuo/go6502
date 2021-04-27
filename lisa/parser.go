@@ -98,7 +98,8 @@ end:
 			}
 			switch t.Type {
 			case TLabel:
-				if _, ok := lt[string(t.Value)]; !ok {
+				_, ok := lt[string(t.Value)]
+				if !ok {
 					el = append(el, s.NE("can't find regular label:%s", string(t.Value)))
 				}
 
