@@ -124,11 +124,17 @@ const (
 	USR
 )
 
-func isPseudo(m Mnemonic) bool {
+func isNonAddress(m Mnemonic) bool {
 	switch m {
-	case OBJ, ORG, EPZ, EQU, ASC, STR, HEX, LST, NLS, DCM,
-		ICL, END, ADR, DCI, INV, BLK, DFS, PAG, PAU, BYT,
-		HBY, DBY, LET, TTL, NOG, GEN, PHS, DPH, DA, IF, EL, FI, USR:
+	case OBJ, ORG, EPZ, EQU:
+		return true
+	}
+	return false
+}
+
+func isRawData(m Mnemonic) bool {
+	switch m {
+	case ASC:
 		return true
 	}
 	return false
@@ -136,8 +142,9 @@ func isPseudo(m Mnemonic) bool {
 
 func isRelative(m Mnemonic) bool {
 	switch m {
-	case BCC, BCS, BEQ, BNE, BNC, BPL, BTR, BFL, BGE, BLT, BMI,
-		BVC, BVS:
+	case BCC, BCS, BEQ, BNE,
+		BNC, BPL, BTR, BFL,
+		BGE, BLT, BMI, BVC, BVS:
 		return true
 	}
 	return false

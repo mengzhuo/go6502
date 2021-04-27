@@ -24,7 +24,6 @@ func (s *Symbol) String() string {
 type Compiler struct {
 	Symbols     map[string]*Symbol
 	target      []*Symbol
-	first       *Symbol
 	PC          uint16
 	errCount    int
 	warnAsError bool
@@ -60,7 +59,7 @@ func (c *Compiler) processPseudo(sym *Symbol) {
 	c.Symbols[s.Label] = sym
 
 	switch s.Mnemonic {
-	case STR, ASC, HEX, OBJ:
+	case STR, HEX, OBJ:
 		c.errorf("unsupported mnemonic (yet)", s.Mnemonic)
 	}
 }
@@ -125,7 +124,7 @@ func (c *Compiler) buildSymbolTable(sl []*Stmt) {
 			sym.Name = s.Label
 		}
 
-		if isPseudo(s.Mnemonic) {
+		if isNonAddress(s.Mnemonic) {
 			c.processPseudo(sym)
 			continue
 		}
@@ -136,9 +135,6 @@ func (c *Compiler) buildSymbolTable(sl []*Stmt) {
 		}
 		prev = sym
 
-		if c.first == nil {
-			c.first = sym
-		}
 		if isRelative(s.Mnemonic) {
 			sym.Stmt.Mode = ins.Relative
 		}
@@ -169,9 +165,26 @@ func Compile(sl []*Stmt, of io.Writer) (err error) {
 	return
 }
 
+func (c *Compiler) writeRawData(of io.Writer, sym *Symbol) {
+	switch sym.Stmt.Mnemonic {
+	case ASC:
+		d := sym.Stmt.Expr[0].Value
+		n, err := of.Write(d)
+		if err != nil || n != len(d) {
+			c.errorf("%s write error:%d %s", sym.Stmt, n, err)
+		}	
+	default:
+		c.errorf("%d unsupported raw data %s", sym.Stmt.Line, sym.Stmt)
+	}
+}
+
 func (c *Compiler) encode(of io.Writer) {
 	for _, sym := range c.target {
 		stm := sym.Stmt
+		if isRawData(stm.Mnemonic) {
+			c.writeRawData(of, sym)
+			continue
+		}	
 		i := ins.GetNameTable(stm.Mnemonic.String(), stm.Mode.String())
 		if i.Mode == 0 {
 			c.errorf("can't find instruction:%v ", stm)
@@ -237,6 +250,12 @@ func (c *Compiler) determineAddress() (err error) {
 
 	for _, p := range c.target {
 
+		if isRawData(p.Stmt.Mnemonic) {
+			p.Address = c.PC
+			c.PC += uint16(len(p.Stmt.Expr[0].Value))
+			continue
+		}
+
 		i := ins.GetNameTable(p.Stmt.Mnemonic.String(), p.Stmt.Mode.String())
 		if i.Mode == 0 {
 			c.errorf("can't find instruction:%v ", p.Stmt)
@@ -256,6 +275,9 @@ func (c *Compiler) evalue() {
 	var err error
 	// look up for absolute term
 	for _, s := range c.target {
+		if isRawData(s.Stmt.Mnemonic) {
+			continue
+		}
 		_, err = c.evalueExpr(s)
 		if err != nil {
 			c.errorf("evalue expression failed:%s", err)
