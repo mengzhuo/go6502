@@ -49,8 +49,10 @@ func (c *Compiler) processPseudo(sym *Symbol) {
 
 	s := sym.Stmt
 	if s.Mnemonic == ORG {
+		c.Symbols["_ORG"] = sym
 		return
 	}
+
 	if s.Label == "" {
 		c.errorf(s.NE("Pseudo require label").Error())
 		return
@@ -172,7 +174,7 @@ func (c *Compiler) writeRawData(of io.Writer, sym *Symbol) {
 		n, err := of.Write(d)
 		if err != nil || n != len(d) {
 			c.errorf("%s write error:%d %s", sym.Stmt, n, err)
-		}	
+		}
 	default:
 		c.errorf("%d unsupported raw data %s", sym.Stmt.Line, sym.Stmt)
 	}
@@ -184,7 +186,7 @@ func (c *Compiler) encode(of io.Writer) {
 		if isRawData(stm.Mnemonic) {
 			c.writeRawData(of, sym)
 			continue
-		}	
+		}
 		i := ins.GetNameTable(stm.Mnemonic.String(), stm.Mode.String())
 		if i.Mode == 0 {
 			c.errorf("can't find instruction:%v ", stm)
@@ -197,6 +199,10 @@ func (c *Compiler) encode(of io.Writer) {
 		buf := make([]byte, i.Bytes)
 		buf[0] = i.Op
 		if i.Bytes == 1 {
+			n, err := of.Write(buf)
+			if err != nil || n != 1 {
+				c.errorf(stm.NE("write data failed:%s %d", err, n).Error())
+			}		
 			continue
 		}
 
@@ -204,7 +210,7 @@ func (c *Compiler) encode(of io.Writer) {
 		case ins.Relative:
 			// op is absolute address
 			ab := int32(sym.Operand)
-			ab -= int32(sym.Address)
+			ab -= int32(sym.Address) + 2
 			if ab < -126 || ab > 128 {
 				c.errorf("overflow relative address:%d %d %d", ab, sym.Operand, sym.Address)
 				continue
@@ -229,22 +235,17 @@ func (c *Compiler) encode(of io.Writer) {
 
 func (c *Compiler) determineAddress() (err error) {
 
-	for _, p := range c.target {
-		if p.Stmt.Mnemonic == ORG {
-			if _, ok := c.Symbols["_ORG"]; ok {
-				c.warnf("duplicate ORG found, replaced original")
-			}
-			if len(p.Stmt.Expr) != 1 {
-				c.errorf("ORG must be literal")
-				return
-			}
+	if org, ok := c.Symbols["_ORG"]; !ok {
+		c.warnf("no ORG found, replaced original")
+	} else {
+		if len(org.Stmt.Expr) != 1 {
+			c.errorf("ORG must be literal")
+			return
+		}
 
-			if c.PC, err = c.evalueExpr(p); err != nil {
-				c.errorf("get ORG failed:", err)
-				return
-			}
-			c.Symbols["_ORG"] = p
-			continue
+		if c.PC, err = c.evalueExpr(org); err != nil {
+			c.errorf("get ORG failed:", err)
+			return
 		}
 	}
 

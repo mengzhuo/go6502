@@ -40,3 +40,21 @@ func TestBinFunction(t *testing.T) {
 		t.Fatal(err, c)
 	}
 }
+
+func TestHelloWorld(t *testing.T) {
+	f, err := os.Open("../lisa/testdata/hello_world.out")
+	if err != nil {
+		t.Skip("no raw data", err)
+	}
+	defer f.Close()
+	data, err := ioutil.ReadAll(f)
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := &SimpleMem{}
+	copy(m[0x400:], data)
+	c := New()
+	c.PC = 0x400
+	err = c.Run(m)
+	t.Logf("%18q", string(m[0x42:0x42+18]))
+}

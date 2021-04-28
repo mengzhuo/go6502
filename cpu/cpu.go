@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	debug = false
+	debug = true
 	pss   = "CZIDB-VN"
 
 	targetCycle = 98321791
