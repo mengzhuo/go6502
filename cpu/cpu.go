@@ -8,11 +8,11 @@ import (
 )
 
 const (
-	debug = true
+	debug = false
 	pss   = "CZIDB-VN"
 
 	targetCycle = 98321791
-	targetPC    = 0x3469
+	targetPC    = 0x406
 )
 
 const (
@@ -28,7 +28,7 @@ const (
 
 type CPU struct {
 	totalCycles  time.Duration
-	durPerCycles time.Duration
+	DurPerCycles time.Duration
 
 	NMI   chan bool // edge trigger
 	Reset chan bool // edge trigger
@@ -55,13 +55,7 @@ func New() (c *CPU) {
 	// pagetable.com/?p=410
 	c.irqVec = 0xfffe
 	c.nmiVec = 0xfffa
-	c.reset()
 	return
-}
-
-func (c *CPU) reset() {
-	c.PC = 0xfffc
-	c.sp = 0xfd
 }
 
 func (c *CPU) SP() uint16 {
@@ -81,6 +75,12 @@ func (c *CPU) String() string {
 		c.SP(), c.PC, t, c.IR)
 }
 
+func (c *CPU) ResetF(m Mem) {
+	c.PC = m.ReadWord(0xfffc)
+	c.sp = 0xfd
+	c.PS = 0
+}
+
 func (c *CPU) Run(m Mem) (err error) {
 
 	c.Mem = m
@@ -91,7 +91,7 @@ func (c *CPU) Run(m Mem) (err error) {
 	)
 
 	for {
-
+		// check interupt
 		select {
 		case <-c.NMI:
 			c.pushWordToStack(c.PC)
@@ -99,7 +99,7 @@ func (c *CPU) Run(m Mem) (err error) {
 			c.PC = c.Mem.ReadWord(c.nmiVec)
 			c.PS |= FlagIRQDisable
 		case <-c.Reset:
-			c.reset()
+			c.ResetF(m)
 		default:
 		}
 
@@ -111,23 +111,27 @@ func (c *CPU) Run(m Mem) (err error) {
 		}
 
 		prev = c.PC
+		//  Fetch Instruction
 		c.IR = m.ReadByte(c.PC)
+		// Decode
 		i = ins.Table[c.IR]
 		if i.Cycles == 0 {
 			return c.Fault("invalid op code")
 		}
+
 		if debug {
 			fmt.Println(c, i)
 		}
-		c.PC += uint16(i.Bytes)
 
+		// Execute
+		c.PC += uint16(i.Bytes)
 		cycles, err = c.insHandler(i)
 		if err != nil {
 			return
 		}
 		cycles += i.Cycles
 		c.totalCycles += cycles
-		// time.Sleep(cycles * c.durPerCycles)
+		time.Sleep(cycles * c.DurPerCycles)
 
 		if debug {
 			if c.totalCycles > targetCycle {
@@ -143,7 +147,6 @@ func (c *CPU) Run(m Mem) (err error) {
 		if c.PC == prev {
 			return c.Fault("infinite loop")
 		}
-
 	}
 	return
 }
