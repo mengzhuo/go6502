@@ -49,7 +49,7 @@ type CPU struct {
 
 func New() (c *CPU) {
 	c = &CPU{
-		NMI:   make(chan bool),
+		NMI:   make(chan bool, 1024),
 		Reset: make(chan bool),
 	}
 	// pagetable.com/?p=410
