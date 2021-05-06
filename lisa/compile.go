@@ -1,6 +1,7 @@
 package lisa
 
 import (
+	"encoding/binary"
 	"fmt"
 	"go6502/ins"
 	"io"
@@ -25,8 +26,10 @@ type Compiler struct {
 	Symbols     map[string]*Symbol
 	target      []*Symbol
 	PC          uint16
+	Origin      uint16
 	errCount    int
 	warnAsError bool
+	ZObj        bool
 }
 
 func (c *Compiler) errorf(f string, args ...interface{}) {
@@ -147,10 +150,11 @@ func (c *Compiler) buildSymbolTable(sl []*Stmt) {
 	return
 }
 
-func Compile(sl []*Stmt, of io.Writer) (err error) {
+func Compile(sl []*Stmt, of io.Writer, zobj bool) (err error) {
 
 	c := &Compiler{
 		Symbols: make(map[string]*Symbol),
+		ZObj:    zobj,
 	}
 	c.buildSymbolTable(sl)
 	for c.expandConst() {
@@ -168,9 +172,11 @@ func Compile(sl []*Stmt, of io.Writer) (err error) {
 }
 
 func (c *Compiler) writeRawData(of io.Writer, sym *Symbol) {
+	d := sym.Stmt.Expr[0].Value
 	switch sym.Stmt.Mnemonic {
+	case STR:
+		of.Write([]byte{uint8(len(d))})
 	case ASC:
-		d := sym.Stmt.Expr[0].Value
 		n, err := of.Write(d)
 		if err != nil || n != len(d) {
 			c.errorf("%s write error:%d %s", sym.Stmt, n, err)
@@ -181,6 +187,11 @@ func (c *Compiler) writeRawData(of io.Writer, sym *Symbol) {
 }
 
 func (c *Compiler) encode(of io.Writer) {
+
+	if c.ZObj {
+		binary.Write(of, binary.LittleEndian, uint16(c.Origin))
+	}
+
 	for _, sym := range c.target {
 		stm := sym.Stmt
 		if isRawData(stm.Mnemonic) {
@@ -202,7 +213,7 @@ func (c *Compiler) encode(of io.Writer) {
 			n, err := of.Write(buf)
 			if err != nil || n != 1 {
 				c.errorf(stm.NE("write data failed:%s %d", err, n).Error())
-			}		
+			}
 			continue
 		}
 
@@ -247,6 +258,7 @@ func (c *Compiler) determineAddress() (err error) {
 			c.errorf("get ORG failed:", err)
 			return
 		}
+		c.Origin = c.PC
 	}
 
 	for _, p := range c.target {

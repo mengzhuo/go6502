@@ -9,8 +9,11 @@ import (
 var en = binary.LittleEndian
 
 func Decode(rd io.ReadSeeker, f *ZhuProg) (err error) {
-	f = &ZhuProg{}
-	err = binary.Read(rd, en, f)
+	err = binary.Read(rd, en, &f.Magic)
+	if err != nil {
+		return
+	}
+	err = binary.Read(rd, en, &f.HdrNum)
 	if err != nil {
 		return
 	}
@@ -20,12 +23,9 @@ func Decode(rd io.ReadSeeker, f *ZhuProg) (err error) {
 		return
 	}
 
-	f.Headers = make([]*ZHeader, f.HdrNum)
-	f.Progs = make([][]byte, f.HdrNum)
-
 	var rn int
 
-	for i := range f.Headers {
+	for i := 0; i < int(f.HdrNum); i++ {
 		ho := int64(3 + i*8)
 		_, err = rd.Seek(ho, io.SeekStart)
 		if err != nil {
@@ -33,11 +33,9 @@ func Decode(rd io.ReadSeeker, f *ZhuProg) (err error) {
 		}
 
 		hdr := &ZHeader{}
-		err = binary.Read(rd, en, hdr)
-		if err != nil || hdr.Magic != ZHMag {
-			return
-		}
-		f.Headers[i] = hdr
+		f.Headers = append(f.Headers, hdr)
+		binary.Read(rd, en, hdr)
+
 		prog := make([]byte, hdr.ProgSize)
 
 		_, err = rd.Seek(int64(hdr.FileOffset), io.SeekStart)
@@ -50,7 +48,7 @@ func Decode(rd io.ReadSeeker, f *ZhuProg) (err error) {
 			err = fmt.Errorf("read prog failed:%s expected = %d, got=%d", err, hdr.ProgSize, rn)
 			return
 		}
-		f.Progs[i] = prog
+		f.Progs = append(f.Progs, prog)
 	}
 	return
 }

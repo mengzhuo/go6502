@@ -13,6 +13,7 @@ var (
 	in       = flag.String("i", "", "input file")
 	out      = flag.String("o", "", "output object file")
 	debugIns = flag.Bool("L", false, "print instruction")
+	zobj     = flag.Bool("z", true, "Zhu OS obj file ")
 )
 
 func main() {
@@ -63,6 +64,7 @@ func load(in, of string) (err error) {
 		return
 	}
 	defer outf.Close()
-	err = lisa.Compile(ol, outf)
+	err = lisa.Compile(ol, outf, *zobj)
+
 	return
 }

@@ -27,7 +27,6 @@ func Encode(wr io.WriteSeeker, f *ZhuProg) (err error) {
 	for i, hdr := range f.Headers {
 		hdr.ProgSize = uint16(len(f.Progs[i]))
 		hdr.FileOffset = fileOffset
-		hdr.Magic = ZHMag
 		fileOffset += hdr.ProgSize
 	}
 
