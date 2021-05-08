@@ -134,7 +134,7 @@ func isNonAddress(m Mnemonic) bool {
 
 func isRawData(m Mnemonic) bool {
 	switch m {
-	case ASC:
+	case ASC, STR, HEX, ADR:
 		return true
 	}
 	return false

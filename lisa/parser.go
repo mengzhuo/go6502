@@ -167,7 +167,7 @@ func parse(il []*Stmt) (err error) {
 		}
 
 		switch s.Mnemonic {
-		case ASC, STR, BYT, DA:
+		case ASC, STR, BYT, DA, HEX:
 			s.Expr = Expression{&Term{Type: TRaw, Value: []byte(s.Oper)}}
 			continue
 		}

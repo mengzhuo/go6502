@@ -26,7 +26,7 @@ func Decode(rd io.ReadSeeker, f *ZhuProg) (err error) {
 	var rn int
 
 	for i := 0; i < int(f.HdrNum); i++ {
-		ho := int64(3 + i*8)
+		ho := int64(ZhuProgSize + i*ZHeaderSize)
 		_, err = rd.Seek(ho, io.SeekStart)
 		if err != nil {
 			return

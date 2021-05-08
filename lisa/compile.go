@@ -2,6 +2,7 @@ package lisa
 
 import (
 	"encoding/binary"
+	ehex "encoding/hex"
 	"fmt"
 	"go6502/ins"
 	"io"
@@ -64,7 +65,7 @@ func (c *Compiler) processPseudo(sym *Symbol) {
 	c.Symbols[s.Label] = sym
 
 	switch s.Mnemonic {
-	case STR, HEX, OBJ:
+	case OBJ:
 		c.errorf("unsupported mnemonic (yet)", s.Mnemonic)
 	}
 }
@@ -176,11 +177,22 @@ func (c *Compiler) writeRawData(of io.Writer, sym *Symbol) {
 	switch sym.Stmt.Mnemonic {
 	case STR:
 		of.Write([]byte{uint8(len(d))})
+		fallthrough
 	case ASC:
 		n, err := of.Write(d)
 		if err != nil || n != len(d) {
 			c.errorf("%s write error:%d %s", sym.Stmt, n, err)
 		}
+	case HEX:
+		t := make([]byte, len(d)/2)
+		if n, err := ehex.Decode(t, d); err != nil {
+			c.errorf("%s decode hex error:%d %s", sym.Stmt, n, err)
+		}
+		n, err := of.Write(t)
+		if err != nil || n != len(d)/2 {
+			c.errorf("%s write error:%d %s", sym.Stmt, n, err)
+		}
+	case ADR:
 	default:
 		c.errorf("%d unsupported raw data %s", sym.Stmt.Line, sym.Stmt)
 	}
@@ -246,6 +258,20 @@ func (c *Compiler) encode(of io.Writer) {
 
 func (c *Compiler) determineAddress() (err error) {
 
+	// we evalue labels first
+	for _, p := range c.Symbols {
+		if !isNonAddress(p.Stmt.Mnemonic) {
+			continue
+		}
+		if p.Stmt.Mnemonic == ORG {
+			continue
+		}
+		p.Address, err = c.evalueExpr(p)
+		if err != nil {
+			c.errorf("evalue failed:%s", err)
+		}
+	}
+
 	if org, ok := c.Symbols["_ORG"]; !ok {
 		c.warnf("no ORG found, replaced original")
 	} else {
@@ -265,7 +291,15 @@ func (c *Compiler) determineAddress() (err error) {
 
 		if isRawData(p.Stmt.Mnemonic) {
 			p.Address = c.PC
-			c.PC += uint16(len(p.Stmt.Expr[0].Value))
+			switch p.Stmt.Mnemonic {
+			case STR:
+				c.PC += 1
+				fallthrough
+			case ASC:
+				c.PC += uint16(len(p.Stmt.Expr[0].Value))
+			case HEX:
+				c.PC += uint16(len(p.Stmt.Expr[0].Value)) / 2
+			}
 			continue
 		}
 

@@ -30,6 +30,10 @@ func Encode(wr io.WriteSeeker, f *ZhuProg) (err error) {
 		fileOffset += hdr.ProgSize
 	}
 
+	for _, hdr := range f.Headers {
+		fmt.Printf("prog:0x%x fo:0x%x\n", hdr.ProgSize, hdr.FileOffset)
+	}
+
 	for i, hdr := range f.Headers {
 		ho := int64(ZhuProgSize + i*ZHeaderSize)
 
@@ -37,6 +41,7 @@ func Encode(wr io.WriteSeeker, f *ZhuProg) (err error) {
 		if err != nil {
 			return
 		}
+
 		err = binary.Write(wr, en, hdr)
 		if err != nil {
 			return
