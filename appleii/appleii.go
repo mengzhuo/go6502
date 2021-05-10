@@ -63,11 +63,13 @@ func (a *AppleII) Init(in io.Reader) (err error) {
 
 	a.in = tview.NewTable()
 	a.in.SetBorder(false)
-	a.in.SetFixed(24, 40)
+
+	cell := tview.NewTableCell(" ")
+	a.in.SetCell(23, 40, cell)
 
 	for r := 0; r < 24; r++ {
 		for c := 0; c < 40; c++ {
-			cell := tview.NewTableCell(" ")
+			cell = tview.NewTableCell("*")
 			cell.SetSelectable(false)
 			a.in.SetCell(r, c, cell)
 		}
@@ -89,10 +91,7 @@ func (a *AppleII) Run() {
 	}()
 
 	app := tview.NewApplication()
-	grid := tview.NewGrid()
-	grid.SetColumns(0, 40*2-2, 0)
-	grid.SetRows(0, 26, 0)
-	grid.AddItem(a.in, 1, 1, 1, 1, 0, 0, true)
+	app.EnableMouse(false)
 
 	a.app = app
 	app.SetInputCapture(a.uiKeyPress)
@@ -101,7 +100,7 @@ func (a *AppleII) Run() {
 	a.cpu.ResetF(a)
 
 	go a.cpu.Run(a)
-	if err := app.SetRoot(grid, true).SetFocus(grid).Run(); err != nil {
+	if err := app.SetRoot(a.in, true).SetFocus(a.in).Run(); err != nil {
 		log.Fatal(err)
 	}
 }
