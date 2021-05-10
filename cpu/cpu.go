@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"go6502/ins"
+	"log"
 	"time"
 )
 
@@ -35,6 +36,8 @@ type CPU struct {
 	IRQ   bool      // level trigger
 	Mem   Mem
 
+	log *log.Logger
+
 	irqVec uint16
 	nmiVec uint16
 
@@ -47,10 +50,11 @@ type CPU struct {
 	sp uint8
 }
 
-func New() (c *CPU) {
+func New(log *log.Logger) (c *CPU) {
 	c = &CPU{
 		NMI:   make(chan bool, 1024),
 		Reset: make(chan bool),
+		log:   log,
 	}
 	// pagetable.com/?p=410
 	c.irqVec = 0xfffe
@@ -69,6 +73,7 @@ func (c *CPU) String() string {
 			t = append(t, pss[i])
 		}
 	}
+
 	return fmt.Sprintf("[%d]A:%02X X:%02X Y:%02X SP:%04X PC:%04X PS:%s IR:%02X",
 		c.totalCycles,
 		c.AC, c.RX, c.RY,
@@ -119,8 +124,8 @@ func (c *CPU) Run(m Mem) (err error) {
 			return c.Fault("invalid op code")
 		}
 
-		if debug {
-			fmt.Println(c, i)
+		if c.log != nil {
+			c.log.Println(c, i)
 		}
 
 		// Execute

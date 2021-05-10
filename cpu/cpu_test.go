@@ -3,6 +3,7 @@ package cpu
 import (
 	"compress/gzip"
 	"io/ioutil"
+	"log"
 	"os"
 	"testing"
 )
@@ -30,7 +31,8 @@ func TestBinFunction(t *testing.T) {
 	if err != nil || n != 0x10000 {
 		t.Fatal(err, n)
 	}
-	c := New()
+	log := log.New(os.Stderr, "cpu", log.LstdFlags)
+	c := New(log)
 	c.PC = 0x400
 	err = c.Run(m)
 	if err == nil {
@@ -53,7 +55,8 @@ func TestHelloWorld(t *testing.T) {
 	}
 	m := &SimpleMem{}
 	copy(m[0x400:], data)
-	c := New()
+	log := log.New(os.Stderr, "cpu", log.LstdFlags)
+	c := New(log)
 	c.PC = 0x400
 	err = c.Run(m)
 	t.Logf("%18q", string(m[0x42:0x42+18]))

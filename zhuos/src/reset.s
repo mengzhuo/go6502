@@ -7,30 +7,38 @@
 CLRKB = $C010
 MAIN  = $B000
 LOGO  = $D000
-SCRSTR = $400
-SCREND = $08
 
-
-	ORG $a000
+	ORG $a500
 	CLV
-	LDA #!0 ; clear 40 cols screen
-	STA SCRSTR
-	LDA $40
-	STA SCRSTR+!1 ; use $400 itself as indirect
-	LDA $1
+	LDA #$04
+	STA $41
+	LDA #$D0 ; setup logo position
+	STA $43
+	LDY #!0 ; y = data pnt
+	LDX #!0 ; x = src pnt
 
-SCRLOOP	STA (SCRSTR),Y
-	INC SCRSTR
-	BVC SCRNOF
-	INC SCRSTR+!1
-SCRNOF	LDA #SCREND
-	CMP !$8
+SCRLOOP	LDA ($42),Y
+	STA ($40),Y
+	INY
+	CPY #!27
+	BNE SCRLOOP
+	TYA
+	LDY #!0
+	CLC
+	ADC $42 ; store y
+	STA $42
+
+	CLC
+	LDA #$80
+	ADC $40
+	STA $40
+	BNE SCRLOOP
+	INC $41
+	LDA #!6
 	BNE SCRLOOP
 
 
 	LDA #!1 ; clear keyboard
 	STA CLRKB
 
-
-*	load Logo
-	LDA LOGO,X
+	JMP (MAIN)
