@@ -4,11 +4,8 @@
 * Show Logo
 * JMP to main loop
 
-CLRKB = $C010
-MAIN  = $B000
-LOGO  = $D000
-
-	ORG $a500
+	ICL "zhuos/src/symbols.s"
+	ORG RESTVEC
 	CLV
 	LDA #$04
 	STA $41

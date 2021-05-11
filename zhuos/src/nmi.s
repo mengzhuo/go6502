@@ -1,2 +1,4 @@
-	ORG $A000
+	ICL "zhuos/src/symbols.s"
+
+	ORG NMIVEC
 	RTI

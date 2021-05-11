@@ -1,4 +1,4 @@
-STATIC	= $D000
+	ICL "zhuos/src/symbols.s"
 	ORG STATIC
 LOGO	ASC "_____  _ _   _    ___  ___ "
 	ASC "|_  / || | | | | / _ \/ __|"

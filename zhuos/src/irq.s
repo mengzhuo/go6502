@@ -1,4 +1,4 @@
-IRQADDR = $AA00
+	ICL "zhuos/src/symbols.s"
+
 	ORG IRQADDR
-	
 	RTI
