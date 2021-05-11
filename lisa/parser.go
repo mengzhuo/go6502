@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"go6502/ins"
 	"io"
+	"os"
 	"strings"
 )
 
@@ -210,8 +211,25 @@ func Parse(rd io.Reader) (il []*Stmt, err error) {
 		if err = lexing(st, t); err != nil {
 			return
 		}
+
 		st.Line = ln
-		il = append(il, st)
+		if st.Mnemonic != ICL {
+			il = append(il, st)
+			continue
+		}
+
+		var fd *os.File
+		fd, err = os.Open(st.Oper)
+		if err != nil {
+			return
+		}
+		var stl []*Stmt
+		stl, err = Parse(fd)
+		if err != nil {
+			return
+		}
+		fd.Close()
+		il = append(il, stl...)
 	}
 	err = parse(il)
 	if err != nil {
@@ -249,12 +267,13 @@ func lexing(l *Stmt, t []byte) (err error) {
 
 			var w []byte
 			// XXX How to do better ?
-			if l.Mnemonic == ASC || l.Mnemonic == STR {
+			switch l.Mnemonic {
+			case ASC, STR, ICL:
 				w, t, err = lookForQuote(t)
 				if err != nil {
 					return l.NE(err.Error())
 				}
-			} else {
+			default:
 				w, t = t[:i], t[i:]
 			}
 
@@ -262,6 +281,7 @@ func lexing(l *Stmt, t []byte) (err error) {
 				err = l.processLabel(w)
 				continue
 			}
+
 			if l.Mnemonic == 0 {
 				err = l.handleMnemonic(w)
 				l.Mode = ins.Implied

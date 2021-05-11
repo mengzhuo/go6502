@@ -1,0 +1,399 @@
+               
+               =======================================
+                    LISA 2.5 DOCUMENTATION FILE #1
+               =======================================
+               
+                         WRITTEN BY: DATA CAT
+               
+
+
+A   PROFESSIONAL   ASSEMBLY  LANGUAGE  DEVELOPMENT  SYSTEM  FOR  APPLE
+COMPUTERS
+                               LISA 2.5
+
+-What is Lisa
+LISA (pronounced LI ZA, not LE SA) is an  interactive  6502  assembler
+for   the   Apple   II.   Due  to  its  structure,  code  compression,
+interaction, and built-in features, LISA is easily the  most  powerful
+assembler  available  for  the  Apple II.  With LISA, machine language
+programming becomes almost as easy as  BASIC.   LISA  works  with  you
+instead  of  working  against  you.  LISA is a symbolic assembler, the
+programmer does not have to  keep  track  of  addresses  as  with  the
+built-in  ROM mini-assembler.  More pseudo opcodes, Sweet 16 mnemonics
+(which turns your Apple II  into  a  16-bit  machine),  more  extended
+mnemonics and more commands which allow the flexible use of DOS 3.2. 
+
+LISA  also  works  with  the new Apple II PLUS as well as with Apple's
+Autostart ROM or the language system.  If your Apple II has the  Lazer
+MicroSystems Lower Case +Plus installed, you may enter and display the
+entire  96 upper/lower case ASCII character set and all characters may
+be entered directly from an unmodified Apple keyboard.  Not only that,
+but should you desire  to  incorporate  lower  case  input  into  your
+assembly language programs Lazer Systems has provided a source listing
+of the "LIZA P2.L" routines (used by LISA) for your convenience. 
+
+-Requirements
+
+Requirements  include  at  least one drive and 48K bytes of RAM.  LISA
+2.5 64K requires a language card for proper operation. 
+
+-Disk Facilities Provided
+
+LISA uses several disk options.  You may save LISA text files to  disk
+as  either  a  text or "LISA" type file.  "LISA" files are much faster
+and require less space on the disk, but are incompatible with the rest
+of the world.  Text files may be read in by APPLE Pie  or  your  BASIC
+programs  but  are  much  slower than the "LISA" type files for simple
+loading and saving.  In addition a LISA source file  on  disk  may  be
+appended  to  the  existing  file  in  memory  by using the "AP(PEND)"
+command.  During assembly it is possible to "chain"  source  files  in
+from  the disk using the "ICL" pseudo opcode.  This allows the user to
+assemble text files which are much larger than the available memory in
+the Apple II.  Likewise, by using  the  "DCM"  pseudo  opcode,  it  is
+possible to save generated code on to the disk, so codefiles of almost
+any length may be generated. 
+
+-How does LISA interface with the Monitor & DOS? 
+
+LISA  operates  under  DOS  3.2  for  file  maintenance and peripheral
+control.  Any DOS command may be executed directly from LISA's command
+level.  Since PR# & IN# are DOS commands, PR# & IN# are available  for
+peripheral  control.   In addition, control-P is reserved for use with
+user defined routines.  These routines may be printer drivers for  use
+with  I/O  devices  not  utilizing an on-board ROM, or use with device
+drivers using the game I/O jack, or any user defined utility  such  as
+slow list, entry into BASIC, etc.  LISA uses only standard routines in
+the  Apple  Monitor,  so  LISA  will  work  with both the normal Apple
+monitor and the Autostart ROM.  LISA modifies  pointers  in  DOS  3.2,
+therefore,  when your LISA disk is booted the DOS which is loaded into
+memory should not be used for BASIC, or TINY  PASCAL  programs.   LISA
+save  source  files  in a special "LISA" format.  When you catalog the
+disk these files will have filetype of "L".   When  running  under  an
+unmodified  DOS  these  files  will  look  like binary files, but they
+cannot be BLOADED or BRUN'd.  LISA is provided on DOS 3.2 but  may  be
+converted to DOS 3.3 using the DOS 3.3 MUFFIN program. 
+
+-Important Concepts
+
+               1) SOURCE FORMAT
+               2) LABEL FIELD
+               3) MNEMONIC FIELD
+
+                   a) STANDARD MNEMONICS
+                   b) EXTENDED MNEMONICS
+                   c) SWEET-16 MNEMONICS
+                   d) PSEUDO OPCODES
+
+               4) OPERAND FIELD
+               5) COMMENT FIELD -Assembly Language Source Format
+
+Source  statements  in  LISA  are  entered in a "free format" fashion.
+Source statements in LISA use the following format: 
+
+               LABEL MNEMONIC OPERAND ;COMMENT
+
+Each member of the source statement is called a "field".  There  is  a
+LABEL  field, a MNEMONIC field, an OPERAND field, and a COMMENT field.
+These fields may or may not be optional depending upon the context  of
+the  statement.  These fields must be separated by at least one blank,
+& interleaving blanks may not appear inside any of the fields.  If  an
+upper  case  alphabetic  character  appears  in  column one, then that
+character defines the beginning of the LABEL field.  If column one  is
+blank, then this is a signal to LISA that there will not be a label on
+the  current  line.   If  column  one contains a semicolon (";") or an
+asterisk ("*"), then the rest of the line will be considered a comment
+and will be ignored.  The appearance of any other character in  column
+one  constitutes  an error and this error will be flagged at edit time
+(assuming that you're using LISA's built-in editor). 
+
+-THE LABEL FIELD
+
+The label field contains a one to eight character  label  whose  first
+character  begins  in  column one.  If you attempt to place a label in
+any column except column one LISA will mistake the label  for  a  6502
+mnemonic  and  will (more than likely) give you a syntax error.  Valid
+characters in labels are the uppercase alphabetics, numerics, and  the
+two  special  characters period (".") and underline ("-").  While LISA
+2.5 will accept certain  other  characters  within  a  filename,  they
+should  be  avoided  to  insure  upwards  compatibility  with upcoming
+versions of  LISA.   Lower  case  alphabetics  will  be  converted  to
+uppercase when processing labels, they may be used if convenient. 
+
+Labels  are  terminated  with  either  a blank or a colon.  If a blank
+terminates the label that  a  6502  mnemonic  must  appear  after  the
+label.   If a colon terminates the line than the remainder of the line
+is ignored and the label will appear on the line by itself. 
+
+A special type of label, local labels, will be discussed later in this
+manual. 
+
+-THE MNEMONIC FIELD
+
+This field, delimited by a blank, must  contain  the  three  character
+mnemonic.   This  may  be  any  of  the valid 6502 mnemonics, Sweet-16
+mnemonics, or pseudo-opcodes. 
+
+   VALID MNEMONICS: 
+
+               ADC AND ASL BCC BCS BEQ BIT BMI BNE BPL
+               BRK BVC BVS CLC CLD CLI CMP CPX CPY DEC
+               DEX DEY EOR INC INX INY JMP JSR LDA LDX
+               LDY LSR NOP ORA PHA PHP PLA PLP ROL ROR
+               RTI RTS SBC SEC SED SEI STA STX STY TAX
+               TAY TSX TXA TXS TYA
+
+   EXTENDED MNEMONICS: 
+
+               BTR BFL BGE BLT XOR
+
+   SWEET-16 MNEMONICS: 
+
+               SET LDR STO LDD STD POP STP ADD SUB PPD
+               CPR INR DCR RTN BRA BNC BIC BIP BIM BNZ
+               BMI BNM BKS RSB BSB BNZ
+
+   PSEUDO OPCODES: 
+
+               OBJ ORG EPZ EQU ASC STR HEX LST NLS DCM
+               ICL END ADR DCI INV BLK DFS PAG PAU BYT
+               HBY DBY LET TTL NOG GEN PHS DPH .DA .IF
+               .EL .FI USR
+
+LISA mnemonics may be entered in either uppercase or  lowercase,  LISA
+will  always  convert  the  input  mnemonic  to  upper case.A complete
+description of these appear in the following sections. 
+
+-THE OPERAND FIELD 
+
+The operand field,  again  delimited  by  a  blank,
+contains  the  address  expression  and  any  required addressing mode
+information.  
+
+-THE COMMENT FIELD
+
+Following the operand field comes the  optional  comment  field.   The
+comment  field must begin with a semicolon (";") and must be separated
+from the operand field by at least one blank.  The  remainder  of  the
+line  (up  to return) will be ignored by LISA.  If there is no operand
+field (e.g.  implied or accumulator addressing mode) then the  comment
+field  may  follow the mnemonic field.  Comments may not appear on the
+same line as the "END", "LST", PAG, PAU and "NLS" pseudo opcodes.   As
+previously  mentioned,  comments  may  appear on line by themselves by
+placing a semicolon or an asterisk in column one. 
+
+-ADDRESSING MODES
+
+         1) ADDRESS EXPRESSIONS			5) INDEXED BY X ADDRESSING
+         2) IMMEDIATE ADDRESSING MODE		6) INDEXED BY Y ADDRESSING
+            a) Standard syntax			7) RELATIVE ADDRESSING
+            b) Low Order Byte Selection		8) IMPLIED ADDRESSING
+            c) High Order Byte Selection	9)  INDIRECT,  INDEXED  BY  Y
+            d) Extended Modes 			10) INDEXED BY X, INDIRECT ADDRESSING
+         3) ACCUMULATOR ADDRESSING MODE 	11) INDIRECT ADDRESSING
+         4) ABSOLUTE/ZERO PAGE ADDRESSING 	12) LOCAL LABELS
+
+-ADDRESS EXPRESSIONS
+
+The  operand  filed  provides  two  pieces of information to LISA.  It
+provides the addressing mode, which tells the computer how to get  the
+data,  and  the  address expression which tells the computer where the
+data is coming from.  An  address  expression  is  simply  an  integer
+expression,  much  like  the expressions found in Integer BASIC, whose
+result is  a  sixteen-bit  unsigned  integer  in  the  range  0-65535.
+Version  2.5 supports addition, subtraction, multiplication, division,
+logical-AND,   logical-OR,   logical-exclusive   OR,   equality,   and
+inequality. 
+
+An address expression can be defined in the following terms: 
+         1)  An  address  expression is defined as a "term" optionally
+followed by an operator and another address expression. 
+         2) An operator is either "+", "-", "*", "/", "&",  "|",  "^",
+"=", or "#". 
+         3)  A  term  is  either  a  label  (regular  or local), a hex
+constant, a decimal constant, a binary constant, a character  constant
+or the special symbol"*". 
+         4)  Hex  constants  may be in the range $0000- $FFFF and must
+begin with the symbol "$". 
+         5) Decimal constants may be in the range 0 -  65535  and  may
+begin  with  the  symbol "!" (the "!" is optional).  Note that decimal
+constants in the range 65536-  99999  (i.e.   overflow)  will  not  be
+detected  at  edit  time  or assembly time, please be careful!  Signed
+decimal constants (i.e.  negative decimal values) must begin with  the
+sequence "!-". 
+         6)  Binary  constants may be in the range %0000000000000000 -
+%1111111111111111 and must begin with the special symbol "%". 
+         7) Character constants come in two varieties.  If you wish to
+use the standard ASCII representation (i.e.  high order bit of) simply
+enter the character enclosed by two apostrophes (e.g.  'A').   To  use
+the  extended  ASCII  form  (i.e.   high  order  bit  on)  enclose the
+character in quotes (e.g.  "A"). 
+         8) The special symbol "*" can be thought  of  as  a  function
+which  returns  the  address  of  the  beginning of the current source
+line. 
+
+Address expressions may not contain any interleaving blanks. 
+
+Example of Address Expression
+
+        LBL+$3   HERE-THERE    *+!10    "Z"+$1    $FF    !10    !-936
+	LABEL/2*X^$FFFF&$10FF|1 LBL-$FF+!10-%1010011
+
+Address  expressions  are  evaluated  from RIGHT TO LEFT! This is very
+similar in operation to  the  expression  analyzer  used  by  the  APL
+programming language.  Parenthesis are not allowed. 
+
+Example: 
+
+         $5+$3 evaluates to $8
+         $5+$3-$2 " to $6
+         $5-$3+$2 " to $0 ($3+$2 = $5 which is subtracted from $5)
+
+
+In  99%  of  the  cases,  the  order  of  evaluation will not make any
+difference since address expressions seldom have more than two  terms.
+The  only  time  the  right  to  left  evaluation sequence will make a
+difference is when the address expression contains more that two terms
+and the subtraction operator is used.  From this  point  on,  whenever
+"<expression>"   appears   you   may   substitute  any  valid  address
+expression.  A very special type of address expression  is  the  "zero
+page  address  expression".   In  a  nutshell,  a  zero  page  address
+expression is one which results in a value less than or equal  to  $FF
+and  does  not  contain  any  terms  greater  that  $FF.  For example,
+although $FE+$1 is a valid zero page address  expression,  $100-$1  is
+not.   This is because the expression contains a term greater than $FF
+($100).  Also, if during evaluation the expression ever evaluates to a
+value greater than $FF,  the  expression  will  not  be  a  zero  page
+expression,  Naturally,  if an expression evaluates to a value greater
+that $FF,even though its terms are all less than $FF, it will not be a
+zero page expression. 
+
+Multiplication,  division,  logical-AND,  logical-inclusive  OR,   and
+logical-exclusive  OR,  equality,  and  inequality operations are also
+supported in LISA 2.5 address expressions.  The symbols used for these
+operations are "*", "/", "&", "|", "^", and  "#"  respectively.   Note
+that  the  "|"  character is obtained by typing esc-1 and is displayed
+properly only if the user has installed  a  Lazer  MicroSystems  Lower
+Case  +Plus.   The  use  of  the  asterisk  ("*") becomes very context
+dependent.   If  it  is  found  between  two  expression,   then   the
+multiplication  operation  is  assumed.  If it is found in place of an
+expression, the current location counter value will be substituted  in
+its place. 
+
+-IMMEDIATE ADDRESSING MODE
+
+Immediate  data (i.e.  a constant) is preceded by a '#' or '/'.  Since
+the 6502 is an  eight  bit  processor,  and  address  expressions  are
+16-bits  long,  there  must  be some method of choosing the high order
+byte or the low order byte. 
+
+   #: When an address expression is preceded by a "#"  this  instructs
+LISA to use the low order byte of the 16-bit address which follows. 
+         SYNTAX: #<expression>
+
+Examples: 
+         #LABEL #$FF #!6253 #%1011001 #'A' #"Z"+$1
+
+
+   /:  When the address expression is preceded by a "/" this instructs
+LISA to use the high order byte of the 16-bit address which follows. 
+         SYNTAX: /<expression>
+
+Examples: 
+         /LABEL /$FF /!6253 /%101001100 /LBL+$4 /$F88F
+
+Note: "/" is one of the exceptions  to  MOS  syntax.   MOS  uses  "#<"
+instead.   We feel the "/" is easier to type into the system (it saves
+you having to type two shifted characters).  Another  reason  for  not
+using  the  ">"  and "<" operators will become evident when discussing
+local labels. 
+
+In addition to the standard syntax, LISA provides the user with  three
+very convenient extensions to the immediate addressing mode. 
+
+A  single  apostrophe followed by a single character will tell LISA to
+use the ASCII code (high order bit off)  for  that  character  as  the
+immediate data.  This is identical to "'<character>' except you do not
+have to type the "#" and closing apostrophe. 
+         SYNTAX: '<single character>
+
+The  quote  can  be used in a similar manner to the apostrophe, except
+the immediate data used will then be  in  the  extended  ASCII  format
+(high order bit on). 
+         SYNTAX: "<single character>
+
+Examples: 
+         'A -SAME AS #'A' 'B -SAME AS #'B' '% - SAME AS #'%' "C - SAME
+AS #"C" "D - SAME AS #"D" "# - SAME AS #"#"
+
+If  you're  wondering  why  you  would  want  to use the #"A" version,
+remember that an address expression is allowed after  the  "#".   This
+allows  you to construct constants of the form #"Z"+$1 which is useful
+on occasion.  Address expressions are not allowed after the " or '  in
+extended form. 
+
+The   last  extension  to  the  immediate  mode  concerns  hexadecimal
+constants.  Since hex constants are used  much  more  often  than  any
+other  data  type  in the immediate mode, a special provision has been
+made for entering them.  If the first character of the  operand  field
+is  a  DECIMAL  digit  ("0"-"9")  then the computer will interpret the
+following digits as immediate HEXADECIMAL data.  If you need to use  a
+hexadecimal   number  in  the  range  $A0-$FF  you  must  precede  the
+hexadecimal number with a decimal zero.This is required so  that  LISA
+will not mistake your hexadecimal number for a label. 
+
+
+
+Examples: 
+          00  -SAME  AS #$0 05 -SAME AS #$5 10 -SAME AS #$10 OFF -SAME
+AS #$FF
+ WARNING** These special forms of the immediate addressing  mode  were
+included  to  provide  compatibility  with  an older assembler.  Since
+LISA's introduction, the assembler using this special syntax has  been
+removed  from  the marketplace.  To help streamline future versions of
+LISA these syntax additions will not be present in future versions  of
+LISA.    They   are   included  in  LISA  2.5  only  for  purposes  of
+compatibility with older versions of LISA.  DON'T USE THESE  FORMS  IN
+NEW PROGRAMS YOU WRITE, or someday........... 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -15,7 +15,7 @@ var (
 	rom  = flag.String("r", "", "ROM file path(ZhuOS only)")
 )
 
-const defConf = `{"refresh_ms":0, "log":"", "rom":"z.dat"}`
+const defConf = `{"refresh_ms":0, "log":"a2.log", "rom":"z.dat"}`
 
 func main() {
 	flag.Parse()

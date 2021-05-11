@@ -1,0 +1,41 @@
+* Simple KBD Reader Subroutine from AppleII
+* Meng Zhuo 2021
+* KEY Strobe at X
+
+START = $D000
+KBD = $C000
+KBDSTRB = $C010
+ADDR EPZ $00
+DST	EPZ $42
+
+	ORG $D000
+	LDX #!0
+INNER	LDA $e000,X
+	STA $400,X
+	INX
+	CPX #!40
+	BNE INNER
+
+	LDX #!0
+INNER_1	LDA $e028,X
+	STA $480,X
+	INX
+	CPX #!40
+	BNE INNER_1
+
+	LDX #!0
+INNER_2	LDA $e050,X
+	STA $500,X
+	INX
+	CPX #!40
+	BNE INNER_2
+
+LOOP	NOP
+	JMP LOOP ; main loop
+
+	LDX KBDSTRB
+	CPX #!0
+	BEQ END
+	LDX KBD
+	STX DST
+END	RTI

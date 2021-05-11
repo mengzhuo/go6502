@@ -99,7 +99,7 @@ const (
 	LST
 	NLS
 	DCM
-	ICL
+	ICL // Inclide file
 	END
 	ADR
 	DCI
@@ -126,7 +126,7 @@ const (
 
 func isNonAddress(m Mnemonic) bool {
 	switch m {
-	case OBJ, ORG, EPZ, EQU:
+	case OBJ, ORG, EPZ, EQU, ICL:
 		return true
 	}
 	return false

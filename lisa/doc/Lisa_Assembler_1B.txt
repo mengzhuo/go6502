@@ -1,0 +1,264 @@
+
+-ACCUMULATOR ADDRESSING MODE
+
+The  accumulator  addressing  mode  applies  to the four instructions:
+ASL,LSR,ROL, &  ROR.   Standard  MOS  syntax  dictates  that  for  the
+accumulator  addressing  mode  you  must  place  an "A" in the operand
+field.  LISA is compatible with  the  mini-assembler  built  into  the
+Apple and as such the "A" in the operand filed is not required. 
+
+Examples of the Accumulator Addressing Mode: 
+         ASL ROL LSR ROR
+
+-ABSOLUTE/ZERO PAGE ADDRESSING
+
+To  use  the  absolute/zero  page  addressing  mode  simply follow the
+instruction with an address expression in  the  operand  field.   LISA
+handles  zero  page addressing automatically for you ( but see EQU/EPZ
+description). 
+
+Examples: 
+         LDA LABEL -SYMBOLIC  LABEL  USED  LDA  LABEL+$1  -LABEL  PLUS
+OFFSET
+         LDA   $1  -NON-SYMBOLIC  ZERO  PAGE  LDA  $800  -NON-SYMBOLIC
+ABSOLUTE
+         ASL LBL -SYMBOLIC LABEL ROL %10110 -NON-SYMBOLIC ZERO PAGE
+
+
+-INDEXED BY X ADDRESSING
+
+LISA supports the  standard  "indexed  by  X"  syntax.   To  use  this
+addressing mode, your operand field should have the form: 
+         <expression>,X
+
+When  LISA  encounters  an  operand  of  this  form,  the indexed by X
+addressing mode will be used.  If it is possible to use the zero  page
+indexed by X addressing mode, LISA will do so. 
+
+Note:   STY <expression>,X <expression> must be a zero page expression
+or an assembly time error will result. 
+
+Examples: 
+         LDA LBL,X LDA LBL+$1,X LDA $100,X LDA$1010,X
+
+-INDEXED BY Y ADDRESSING
+
+LISA supports the  standard  "indexed  by  Y"  syntax.   To  use  this
+addressing mode your operand should be of the form: 
+         <expression>,Y
+
+When  LISA  encounters  an  operand  of  this  form,  the indexed by Y
+addressing mode will be used.  If it is possible to use the zero  page
+addressing  mode (only with LDX & STX) then the zero page version will
+be used. 
+
+Note: STX <expression>,Y <expression> must be a zero  page  expression
+or an assembly time error will result. 
+
+Examples: 
+         LDA LBL,Y STA LBL+$80,Y LDX $0,Y
+
+
+-RELATIVE ADDRESSING
+
+Relative  addressing  is  used  solely  by  the  branch  instructions.
+Relative addressing is sytactically  identical  to  the  absolute/zero
+page addressing mode. 
+
+Examples: 
+         BNE LBL BCS LBL+$3 BVC *+$5 BMI $900 BEQ LBL-$3
+
+
+
+ -IMPLIED ADDRESSING
+ Several  mnemonics  do  not  require any operands.  When one of these
+instructions is used, simply leave the operand field blank. 
+
+Examples: 
+         CLC SED PHA PLP
+
+-INDIRECT, INDEXED BY Y ADDRESSING
+
+Indirect, indexed by Y addressing has the following syntax: 
+
+         (  <expression>  ),Y  <expression>  must  be  a   zero   page
+expression or an assembly time error will result. 
+
+Examples: 
+         LDA (LBL),Y LDA (LBL+$2),Y LDA ($2),Y LDA (!10+%101),Y
+
+-INDEXED BY X, INDIRECT ADDRESSING
+
+The indexed by X, indirect addressing mode has the format: 
+
+         ( <expression>,X) <expression> must be a zero page expression
+or an assembly time error will result. 
+
+Examples: 
+         LDA (LBL,X) ADC (LBL+$3,X) STA (LABEL-!2,X) AND ($00,X)
+
+-INDIRECT ADDRESSING
+
+The   indirect   addressing  mode  can  only  be  used  with  the  JMP
+instruction.  The indirect addressing mode uses the following syntax: 
+
+         (  <expression>  )  <expression>  may  be  any  valid  16-bit
+quantity. 
+
+Examples: 
+         JMP (LBL) JMP (LBL+$3) JMP ($800)
+
+-LOCAL LABELS
+
+LISA 2.5 supports a special type of label known as the local label.  A
+local  label  definition  consists of the up-arrow ("^") in column one
+followed by a digit in the range 0-9. 
+
+Examples: 
+         ^0 LDA #0 ^9 STA LBL ^7 BIT $C010
+
+Local labels' main attribute is that they may be  repeated  throughout
+the  text  file.   That is, the local label '^1' may appear in several
+places within the text file.  To reference a local label,  simply  use
+the  greater  than  sign ('>') or the less than sign ('<') followed by
+the digit of the local label you wish to access.   If  the  less  than
+sign  is  used,  then  LISA will use the appropriate local label found
+while searching backwards in the textfile.  If the greater  than  sign
+is  used  then  LISA  will use the first appropriate local label found
+searching forward in the text file. 
+
+Examples:  Incrementing a 16-bit value:  INC16 INC ZPGVAR
+                                     BNE >1
+                                     INC ZPGVAR+1
+                               ^1 RTS A Loop: 
+               LDX #0
+         ^8 LDA #0
+               STA LBL,X
+               INX
+               BNE <8 Local labels may not be equated using  the  EQU,
+"=",  or  EPZ  pseudo  opcodes.   They are only allowed to appear as a
+statement label. 
+
+USING LISA--
+
+-GETTING LISA UP AND RUNNING To run LISA simply boot the  disk.   When
+LISA  is  ready  to  execute  a command you will be greeted with a "!"
+prompt (the same one used by the mini:-assembler).  You can  also  run
+LISA  by  issuing the DOS command "BRUN MXFLS".  If LISA is already in
+memory, you can enter  LISA  by  issuing  the  Apple  monitor  command
+"E000G"  or  control-B.   This enters LISA and clears the text file in
+memory.  If you wish to enter LISA without clearing the existing  text
+file  memory  space ( a "warmstart" operation) use the "E003G" monitor
+command or control-C.  Note: See warning and extraneous notes for  the
+warmstart procedure. 
+
+-THE COMMANDS
+
+After  you  successfully  enter  LISA,  the computer will be under the
+control of the command interpreter.  This is usually  referred  to  as
+the  command  level.   When  you are at the command level a "!" prompt
+will be displayed and the computer  will  be  waiting  (with  blinking
+cursor)  for  a  command.   When at the command level you have several
+commands available to you.  They are: 
+
+         N(EW) LO(AD) SA(VE)  W(RITE)  ^D(control-D)  L(IST)  I(NSERT)
+D(ELETE) M(ODIFY) ^P(control-P)
+         A(SM) AP(PEND) LE(NGTH BRK F(IND)
+
+The  optional information is enclosed in "()".  As an example you only
+need type "LO" to perform the "LOAD" command, "I" to execute  "INSERT"
+command, etc. 
+
+EXPLANATION OF COMMANDS--
+
+I(NSERT) {line#}
+         Insert  command,  will allow user to insert assembly language
+source code into the source file.  This command accepts text from  the
+keyboard and inserts it before line number "line#".  If "line#" is not
+specified,  text is inserted after the last line in the text file.  If
+the current text file is empty, then insert will begin  entering  text
+into  a  new text file.  If a line number is specified which is larger
+that the number of lines in the file, text will be inserted after  the
+last  line  in  the  text  file.   To  terminate  the insert mode type
+control-E as the first character of a new line.  LISA uses  a  logical
+line  number  scheme.   The first line in the text file is line number
+one, the second line is line number two, line three is number three  &
+etc.   Whenever  you  perform  an insertion between two lines the line
+numbers are more or less "renumbered".  As an example of what happens,
+boot LISA disk and get into the command interpreter.  Once in  command
+mode,  type  "I"  followed by a return.  LISA will respond with a line
+number of one and will wait for text to be entered in the system.   At
+this  point  type  "LBL LDA 00" followed by return.  LISA will print a
+"2" on the video screen and await the entry of line number  two.   Now
+type  " END" (note the space before the END) followed by return.  LISA
+will respond by printing "3" on the video screen.  Now press control-E
+followed by return to terminate text entry.  LISA will return  to  the
+command  level  which  you will verify by noticing the "!"prompt.  Now
+type "I 2" at the command level.  LISA  will  respond  with  the  line
+number  two  and  will  once again await you text entry.  DO NOT WORRY
+ABOUT DELETING THE PREVIOUSLY ENTERED LINE #2.  Each time you enter  a
+line LISA "pushes" the existing lines down into memory.  To prove this
+to  yourself  enter  "  STA $00" (note the spaces) followed by return.
+When "3" appears prompting you to enter a new  line  press  control-E.
+Now type "L" and the Apple will display: 
+
+         1 LBL LDA 00
+         2 STA $00
+         3 END
+
+Notice  that  "END" which was previously at line #2 has become line #3
+after the insertion.Since  the  line  numbers  change  every  time  an
+insertion  is  performed  it's  a  good idea to list a section of your
+source every time you perform an operation  on  it  because  the  line
+number you decide to use may have been modified by previous editing. 
+
+D(ELETE) line#1{,line#2}
+         Deletes  the  lines in the range specified.  If only one line
+number is specified then only that  line  is  deleted.   If  two  line
+numbers,  separated  by  a  comma, are specified then all the lines in
+that particular range are deleted. 
+
+Examples: 
+         DELETE 2 -DELETED LINE #2
+         DELETE 2,6 -DELETED  LINES  2-6  Note  that  again,  as  with
+insert,  the  lines  are renumbered after the command to reflect their
+position relative to the first line. 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

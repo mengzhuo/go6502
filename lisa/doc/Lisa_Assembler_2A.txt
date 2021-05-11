@@ -1,0 +1,264 @@
+               
+               =======================================
+                    LISA 2.5 DOCUMENTATION FILE #2
+               =======================================
+               
+                        WRITTEN BY: DATA CAT
+               
+
+EXPL OF COMMANDS(cont)
+
+L(IST) {line#1{,line#2}}
+Lists the lines in the specified range.  If you need to scan a section
+of the text file there are two options that facilitate searching for a
+specified  line.   If,  during  the  list, you press the space bar the
+listing will stop until the space bar is pressed again.  If the  space
+bar is repressed the listing will continue from where it left off.  If
+instead of pressing the space bar you press control-C then you will be
+returned to the command level. 
+
+Examples: 
+         LIST      -LISTS ENTIRE FILE
+         LIST 2    -LISTS LINE # 2
+         LIST 2,6  -LIST LINES 2-6
+
+L(OAD) filename
+The specified LISA files will be loaded in.  All valid DOS binary file
+options  except  ",A"  may  be  suffixed  to the name.  LISA files are
+usually loaded in at location $1800. 
+
+Example: 
+LOAD LZR IOS -LOADS LZR IOS FROM DISK
+Note: Although the command "LOAD" is begin used this does not mean the
+LISA used the DOS LOAD command.  Internally  (and  before  DOS  has  a
+chance to see it), "LOAD" is converted to "BLOAD"
+
+S(AVE) filename
+The file in memory is saved to disk under the specified name.  SAVE is
+internally  converted  to  "BSAVE",  so  all conventions,restrictions,
+etc., which apply to "BSAVE" may be used (You cannot, however, specify
+a starting address and length as LISA does this automatically and will
+override your specs).  Files saves using the LISA S(AVE)  command  are
+saved as special "L" type files. 
+
+Example: 
+         SAVE TEMP -SAVES TEXT FILE TO DISK
+         SAVE TEMP,S6,D2 - " " " " " to specified drive. 
+
+AP(PEND) filename
+Reads  in  a  text  file from disk and appends it to the existing text
+file in memory. 
+
+Example: 
+         APPEND TEMP
+         APPEND TEMP,D2
+
+^P (control-P)
+When control-P is pressed LISA will jump to location $E009  and  begin
+execution  there.  Currently at location $E009 is a JMP to the command
+processor used by LISA.  You may replace this JMP with  a  jump  to  a
+location  where  your  particular  routine  begins.   The  by pressing
+control-P (followed by return), LISA  will  jump  to  your  particular
+routine.  To return to the command level you may either execute an RTS
+instruction,  or  JMP  $E003.   Space  has been provided for your user
+routine in the area $9480-$95FF. 
+
+WARNING**** Use only a JMP  instruction  at  location  $E009  as  LISA
+system jumps appear both before and after the JMP $E009. 
+
+A(SM)
+Assembles  the  current text file in memory.  LISA currently allows up
+to 512 labels in the symbol table, to change this see the  appropriate
+appendix.   During  assembly  if  any errors are encountered LISA will
+respond with: 
+
+         A(BORT) OR C(ONTINUE)? 
+
+as well as the  error  message.   Should  you  wish  to  continue  the
+assembly (possibly to see if any further errors exist), write down the
+line  number  of  the  current  infraction  and  press "C" followed by
+return.  If you wish to immediately exit the assembly mode to  correct
+the error, press "A" then return. 
+
+W(RITE) filename
+Writes the current text file to disk as a TEXT file type.  This allows
+you to manipulate you text file with a BASIC or APPLESOFT program.  In
+addition,  TEXT  type  files  may be read into APPLE PIE (VER.  2.0 or
+greater), and you can modify your text files using this very  powerful
+text  editor.  The first line output when using the W(RITE) command is
+"INS".  With "INS" as the first line in the text files  you  many  use
+the  DOS  "EXEC"  command to reload these TEXT type files back in LISA
+(See control-D for more)
+
+L(ENGTH)
+Displays the current length of the text file in memory. 
+
+^D (control-D)
+Allows you to execute one DOS command from LISA. 
+
+ ^D PR#n -turns on an output device
+ ^D IN#n - " " " input "
+ ^D INT -does not put you into BASIC, but rather returns
+                    you to LISA
+ ^D EXEC filename -where file is a TEXT type file previously created
+                    by the W(RITE) command, loads into LISA the
+                    desired text file. 
+ ~D (any other DOS command) -executes that command
+
+M(ODIFY) line#1{,line#2}
+Performs the sequence: 
+
+    L(IST) line#1{,line#2}
+    D(ELETE) line#1{,line#2}
+    I(NSERT) line#1
+
+which allows you to effectively replace a single line or  many  lines.
+If  you  do  not  specify  a  line number then the entire file will be
+listed,you will get an ILLEGAL NUMBER error, and you will be placed in
+the insertion mode with the inserted text  being  inserted  after  the
+last line of the text file. 
+
+N(EW)
+Clears  the existing text file,you are prompted before the clear takes
+place. 
+
+BRK
+Exits from LISA, enters Apple monitor
+
+F(IND)
+Searchs for the label specified after the  find  command.   FIND  will
+print  the  line number of all lines containing the specified label in
+the label field. 
+
+
+-SCREEN EDITING
+
+ To move cursor up      - Control-O
+                down    - Control-L
+                right   - Control-K
+                left    - Control-J
+ Right arrow (Ctrl-U)   - copies character under cursor
+ Left arrow (Ctrl-H)    - deletes  "         "    "
+
+Lower case
+Unless you have  Lazer  MicroSystems'  Lower  Case  +Plus  lower  case
+letters  will appear as garbage on the screen.  They are lower case in
+memory,hence dumping to the printer with lower case  capabilities  you
+will  have  lower case printed.  When moving the cursor over the lower
+case letter junk will seen on the screen,you will see  a  blinking  or
+inverted upper case letter.  You can use this facility to double check
+lower  case entry if you do not have the adapter.  Since the shift key
+does not function for input, the ESC is used as a  shift  key  when  a
+software  shift  has  to  be  used.   "Caps  lock" mode, is toggled by
+pressing- Control-S.  In upper case mode the  cursor  will  blink,  in
+lower  case  mode  it  will be a static inverted character.  While the
+caps lock mode is on the ESC will not work. 
+
+LOWER CASE ADAPTED SPECIAL KEYS: 
+
+     "|"     -by pressing      "!" or "1"
+     "~"     -                 "^" or "N"
+     " "     -                 "'" or "7"
+     "{"     -                 "(" or "8"
+     "}"     -                 ")" or "9"
+     "["     -                 "<" or ","
+     "]"     -                 ">" or "."
+     "_"     -                 "-"
+     "\"     -                 "/"````
+     DEL which prints a funny looking box on the screen
+     (but not on the printer) by pressing "#" or "3"
+
+
+THE AVAILABLE PSEUDO OPCODES: 
+As opcodes tell the 6502 what to do, pseudo opcodes tell LISA what  to
+do.   With  pseudo  opcodes  you  may  reserve  data,  define symbolic
+addresses, instruct LISA as to where the code is to be stored,  access
+the disk, etc.  The pseudo opcodes are: 
+
+ OBJ: OBJECT CODE ADDRESS
+  SYNTAX: OBJ <expression>
+An  assembler  takes  a  source file which you create and generates an
+"object code" file.  This file has to  be  stored  somewhere.   It  is
+possible  to  store  the  object  file  to  disk,  however this causes
+assembly to proceed  very  slowly,  because  the  disk  is  very  slow
+compared  to  the  computer.   The  object  file  many  also be stored
+directly in memory thus allowing the source file to  be  assembled  at
+full speed.  Except in certain cases, LISA always stores the assembled
+program into RAM memory.  Under normal circumstances (meaning you have
+not  told  LISA  otherwise),  programs  are stored in RAM beginning at
+location $800 and grow towards high memory.  Often, the user needs  to
+be  able  to specify where the code will be stored in memory.  The OBJ
+pseudo opcode would be used in this  instance.   When  an  OBJ  pseudo
+opcode  is encountered in the source file, LISA will begin storing the
+object code generated at the specified address.  This  allows  you  to
+assemble  code at one address and store it in another.  Another use of
+the OBJ  pseudo  opcode  is  to  reuse  memory  in  a  limited  memory
+environment.   Suppose  you  wish  to  assemble  a text file 10K bytes
+long.  Unfortunately LISA does not leave you 10K  free  for  this  use
+(only  4K).   What you do is to assemble the first 4K of code and then
+save this first portion of code to disk.  Now, by using  the  OBJ  you
+can  instruct  LISA  to assemble the next 4K of code on top of the old
+code which was saved to disk.  This allows a very flexible  management
+of  memory  resources.   Another example, is when you wish to assemble
+your code for an address outside the  $800-$1800  range.   Since  LISA
+uses  almost every byte outside of this range for one thing or another
+you must assemble your code within this area.  Unfortunately, not  all
+users  want  to  be restricted to this area.  Many users might wish to
+assemble an I/O driver into page 3 or  possibly  up  in  high  memory.
+Regardless  of  where  you  wish  the  program to run, the object code
+generated by LISA must be stored within the range $800-$1800.   Simply
+use the OBJ to store your code beginning at location $800 and remember
+to move it to it's final location (using the monitor "move" command or
+the  DOS  ",A$"  option)  before  running it.  LISA contains a special
+variable called the code counter.  This variable points to the  memory
+location  where  the next byte of object code will be stored.  The OBJ
+will load the value contained in  its  operand  field  into  the  code
+counter  (in  fact  that's  the  only  operation OBJ performs).  Other
+pseudo opcodes affect the code counter as well, they will  be  pointed
+out as they are discussed. 
+
+ORG:PROGRAM ORIGIN
+    SYNTAX: ORG <expression>
+
+When  ORG  is  encountered LISA begins generating code for the address
+specified in the address expression.  When you use ORG you are  making
+a promise that you will run your program at the address specified.  If
+you  set the program origin to $300, then you must move the program to
+location  $300  before  running  it.   Whenever  ORG  is  executed  it
+automatically  performs an OBJ operation as well.  Thus, if you do not
+want the code  to  be  stored  where  you  have  ORG'd  it,  you  must
+immediately follow the ORG statement with an OBJ statement.  If you do
+not  specify  a  program  origin  in your program, the default will be
+$800.  Multiple ORG statements may appear in your program.  Their use,
+however, should be avoided as they tend to cause problems  during  the
+modification of a program (e.g.if you re-ORG the program at some later
+date those embedded ORG statements can kill you).LISA supports several
+opcodes  that reservemem ry,so there is no real need for more than one
+ORG statement within a normal program.  memory,so  there  is  no  real
+need  for  more  than  one ORG statement within a normal program.  ORG
+evaluates the expression in the operand field and loads the calculated
+variable  into  the  code  counter  and  the  LISA  location   counter
+variable.   It  is  important  to  remember  that ORG affects both the
+location counter and code counter. 
+
+WARNING** Locations $800-$1800 are reserved for code storage.  If  you
+assemble  outside  this range possible conflicts with LISA, the source
+file, the symbol table, or I/O buffer areas may arise.  If you need to
+assemble your code at an address other than in the range $800-$1800 be
+sure to use the OBJ pseudo opcode to prevent conflicts. 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

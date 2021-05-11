@@ -1,0 +1,330 @@
+
+EPZ: EQUATE TO PAGE ZERO
+     SYNTAX: LABEL EPZ <expression>
+
+The label is assigned the value of the expression and entered into the
+symbol  table.   If <expression> evaluates to a value greater than $FF
+then an assembly time error occurs.  If any symbolic references appear
+in the expression then they must have been previously defined with  an
+EPZ  pseudo  opcode,  or  an  error  will result.Although LISA doesn't
+require you to do so, it is a good practice to define all of you  zero
+page  locations  used  in  your  program before any code is generated.
+Zero page is used mainly  to  hold  variables  and  pointers.   Before
+wildly  using  up  locations  in zero pages, it's wise to consult your
+Apple manuals to make sure that  there  are  no  zero  page  conflicts
+between  your  program  and  the  monitor or whatever language you are
+using.  When a variable is defined using the EPZ  pseudo  opcode  then
+zero  page  addressing  will be used if at all possible.  The label is
+not optional for the EPZ opcode.  The EPZ  opcode  only  supports  the
+addition and subtraction operators in address expressions. 
+
+EQU: EQUATE
+     SYNTAX: LABEL EQU <expression>
+     or LABEL = <expression>
+
+The  16-bit  value  of  <expression>  will  be used as the address for
+LABEL, and it  will  be  entered  into  the  symbol  table.   Absolute
+addressing  will always be used when using the EQU opcode, even if the
+expression is less  than  $100.   <expression>  may  contain  symbolic
+references  (i.e.  labels), but they must have been previously defined
+in either an EQU statement,  an  EPZ  statement,  or  as  a  statement
+label.   EQU  may  also  be  used  to  create symbolic constants.  For
+instance: 
+
+ CTLD  EQU $84      or   HIMEM   EQU $9600    or  LETRA  = "A"
+       LDA #CTLD                 LDA #HIMEM              LDA #LETRA
+
+The use of symbolic  constants  in  your  program  helps  improve  the
+readability considerably. 
+
+ASC: ASCII STRING DEFINITION
+     SYNTAX: ASC 'any string'
+     or      ASC "any string"
+
+The  ASC  pseudo  code  instructs  LISA  to  store  the following text
+directly  in  memory  beginning  at  the  current  location.   If  the
+apostrophe  is  used,  then  the text is stored in normal ASCII format
+(i.e.  high order  bit  off).   If  the  quotes  are  used,  then  the
+character  string  is  stored  in  memory  in an extended ASCII format
+(i.e.  high order bit on).   Sine  the  APPLE  II  computer  uses  the
+extended  ASCII  format, you will probably use the latter version most
+of the time.  If the apostrophe begins the string, then the apostrophe
+must be used to terminate the  string.   Quotes  may  appear  anywhere
+inside  such  a string with no consequence.  If the quotes are used to
+delimit the string, then an apostrophe may be placed  anywhere  inside
+the  string  with no problems whatsoever.  In this case the quote must
+be used to terminate the string. 
+
+Examples: 
+           ASC 'THIS "STRING" IS OK!'
+           ASC "SO IS THIS 'STRING'"
+           ASC 'THIS IS 'NOT' ALLOWED'
+
+The last example is  illegal  because  the  first  occurrence  of  the
+apostrophe terminates the string, leaving an illegal operand delimiter
+(NOT)  in  the  operand  field.   Should  you  ever  need  to place an
+apostrophe or a quote within a  string  delimited  by  the  respective
+character  it  can  be  accomplished by typing two of these characters
+together in the string. 
+
+Examples: 
+           ASC "THIS IS ""HOW"" YOU DO IT!"
+           ASC 'THIS ''WAY'' WORKS FINE ALSO'
+           ASC '''THIS LOOKS WEIRD,
+BUT IT WORKS'''
+
+In the last example  the created string is:
+
+           'THIS LOOKS WEIRD,
+BUT IT WORKS'
+
+Note: ASC is more or  less  obsolete,  2.5  LISA  is  compatible  with
+earlier versions thats why its included, when writing new programs you
+should use BYT and .DA pseudo opcodes. 
+
+STR: CHARACTER STRING DEFINITION
+     SYNTAX: STR 'any string'
+     or STR "any string"
+
+Most  high  level languages define a character string as a length byte
+followed by 0 to 255 characters.   The  actual  number  of  characters
+following  the  length  byte is specified in the length byte.  Strings
+stored this way are very easy to manipulate in memory.  Functions such
+as  concatenation,  substring  (RIGHT$,MID$,  &  LEFT$),  comparisons,
+output,  etc.,  are accomplished much easier when the actual length of
+the string is known.  Except by manually counting the characters up  &
+explicitly  prefacing a length byte to your string,the ASC opcode does
+not allow you to use this very flexible data  type.   The  STR  opcode
+functions  identically  to  the  ASC opcode with one minor difference,
+before the characters are output to memory, a length byte  is  output.
+This allows you to create strings which can be manipulated in a manner
+identical to that utilized in high level languages. 
+
+Examples: 
+         STR 'HI' -OUTPUTS 02 48 49
+         STR "HELLO" -OUTPUTS 05 C8 C5 CC CC CF
+
+HEX: HEXADECIMAL STRING DEFINITION
+
+The  HEX  pseudo  opcode  allows you to define hexadecimal data and/or
+constants for use in your program.  HEX may be  used  for  setting  up
+data  tables,  initializing  arrays,  etc.   The  string of characters
+following the HEX are assumed to be a string of hex digits.  Each pair
+of digits is converted to one byte and stored in  the  next  available
+memory  location  pointed at by the location counter Since exactly two
+digits are required to make one byte, you must enter an even number of
+hexadecimal digits after the HEX  pseudo  opcode,  or  an  error  will
+result.   As such, leading zeros are required in hex strings.  The hex
+string does not have to begin with a "$" (in fact it cannot begin with
+a "$"!). 
+
+Examples: 
+         HEX FF003425
+         HEX AAAA8845
+         HEX 00
+
+LST: LISTING OPTION ON
+
+LST activates the listing option.  During pass three all source  lines
+after  LST  will  be  listed onto the output device (usually the video
+screen).  Listing will continue until the end of the program or  until
+an  NLS  pseudo opcode is encountered.  Note that there is an implicit
+"LST" at the beginning of your program, so unless otherwise  specified
+your program will be listed from the beginning. 
+
+NLS: NO LISTING/LISTING OPTION OFF
+
+NLS  deactivates  the  listing option.  When encountered in the source
+file, all further text until the end of the program or until an  "LST"
+is encountered, will not be listed.  LST & NLS can be used together to
+list small portions of a program during assembly.  By placing an "NLS"
+at  the  beginning of your program, then a "LST" before the section of
+code you want to printed, and then an "NLS" after the  text  you  want
+printed  you  can  selectively print a portion of the text file during
+assembly.  Neither "LST" nor "NLS" allow an operand. 
+
+ADR: ADDRESS STORAGE
+     SYNTAX: ADR <expression> [,<expression>]
+
+The ADR lets you store, in two successive bytes, the address specified
+in the operand field.  The address  is  stored  in  the  standard  low
+order/high  order  format.  ADR can be used to set up "jump tables" or
+for storing 16-bit data.   ADR  is  particularly  useful  for  storing
+decimal  and  binary  constants  since  conversion to hex is performed
+automatically.  Multiple address expressions may appear in the operand
+field.  If additional address expressions are present,  they  must  be
+separated from each other with commas. 
+
+Examples: 
+     ADR LABEL              ADR LABEL-$1         ADR LABEL+$3
+     ADR LBL1,LBL2,LBL3
+  *- ADR !10050          *- ADR %10011011000111
+
+*-Note  in  particular the last two examples which demonstrate how you
+can store decimal and binary constants in memory using the ADR.   This
+technique  is  very  useful for translating BASIC programs to assembly
+language
+
+END: END OF ASSEMBLY
+
+END tells LISA that the end of the source file has  been  encountered.
+During passes one and two LISA will start at the beginning of the text
+file  and  continue  with  the  next  pass.   At the end of pass three
+control will be returned to LISA's command level.  If the END  is  not
+present  in  the  source file then a "MISSING END" error will occur at
+the end of pass one. 
+
+ICL: INCLUDE TEXT FILE
+     SYNTAX: ICL "filename"
+
+ICL is a very powerful and advanced pseudo opcode.  It allows  you  to
+"chain"  in  another text file.  This pseudo should be used when there
+is not enough memory  available  for  the  current  text  file.   LISA
+provides  you  with enough memory for approximately 1500 to 2000 lines
+of text.  Should you try to exceed this limit a  "memory  full"  error
+will  result.   When  this  happens,delete the last 10 lines or so (to
+give you working space)and, as the last line of your text file use ICL
+to link in the next file.  Once the ICL has  been  entered,  save  the
+text  file  to disk.  Now use the N(EW) command to clear the text file
+workspace and then enter the rest of your assembly language text file,
+continuing from where you left off.  Once you have  finished  entering
+the  text, save the text file disk under the name specified in the ICL
+.  Now load the original files and assemble it.  During assembly  LISA
+will  automatically  bring  in  the second file from disk and continue
+assembly at that point. 
+
+Note** You shouldn't use "ICL" unless you really have to.  The use  of
+ICL slows down assembly from 20,000 lines per minute to about 500-1000
+lines per minute due to considerable disk access. 
+ Since LISA is a three pass assembler the original text file in memory
+must  be  saved  to  disk.   It is saved under the name "TEMP." so you
+should be careful not  to  use  that  filename.   After  assembly  the
+resident  text  file  in memory will be the last text file chained in.
+The original text file  is  not  brought  back  into  memory.   During
+assembly,  if an error occurs in a section of code which was ICL'd off
+of the disk, the error message will give you the name of the file,  as
+well  as  the  line  number  within  the  file  where  the  infraction
+occurred.  Also the option of continuing or aborting.   If  you  abort
+you  will  find the text file with the error currently in memory.  You
+may fix the error, resave the text file to  disk  under  its  original
+name,  then  reload  "TEMP."  and  reassemble  the  text file.  ICL is
+similar to END in that it must be  the  last  statement  in  the  text
+file.   Any  additional lines after the ICL will be ignored.  There is
+no limit to the number of files that  you  can  chain  together  using
+ICL. 
+
+DCM: DISK COMMAND
+     SYNTAX: DCM "dos command"
+
+During pass one and two the DCM pseudo is ignored.  During pass three,
+however, whatever string is placed between the quotes gets executed as
+an Apple DOS command.  A control-D is not required at the beginning of
+the  DOS  command.   The  DCM  has  several  uses,  you  may use it to
+selectively turn on and off input and output devices  during  assembly
+(using PR# & IN#), it can be used to save generated code to disk, thus
+freeing memory space.It can be used to create a disk text file listing
+of  the  assembled  program,also  it can be used to prevent the symbol
+table listing from being printed, and for loading load modules off  of
+the  disk  after  an assembly.Since LISA only allows 4K bytes for your
+obj code (from $800-$1800), you have to BSAVE you obj  file  files  to
+disk  when  this 4K is used up.Once the file is BSAVEd to disk you can
+use the OBJ pseudo to begin storing  your  object  code  beginning  at
+location  $800  once again.When the second 4K is used up you must once
+again use the DCM/OBJ sequence to make room for the new  object  code.
+Once these "load modules" have been saved to disk, you can reload them
+in  sequence  and  the  run  the finished product.  However,you cannot
+simply BLOAD each of the object modules and  expect  your  program  to
+run.   The BLOAD command loads the program in from where it was saved,
+since all load modules were saved  beginning  at  location  $800,  the
+BLOAD  command  will load them in on top of each other!  To get around
+this, use the "A$" option when BLOADing a program to load  the  module
+into  its  correct memory location.  If fact, when BSAVEing a pgm with
+DCM its a good idea to make the  loading  address  part  of  the  file
+name(for example: OBJ.1/$1800)
+
+ Examples: 
+                  . 
+      DCM "BSAVE OBJECT/$800,A$800,L$1000
+      DCM "BSAVE OBJECT/A$1800,A$800,L$1000"
+
+The  symbol  table listing may be suppressed by using the disk command
+"INT".  This should be entered in your program immediately before  the
+"END".  Assembly automatically terminates when the DCM "INT" pseudo is
+encountered  and  you  are returned to the command level.  To create a
+disk file listing of the  assembly  text  file  use  the  DCM  command
+sequence: 
+
+                   DCM "OPEN <filename>"
+                   DCM "WRITE <filename>"
+
+Once this has been accomplished all further text normally written onto
+the  screen will be sent to the disk under the name "<filename>".  The
+last statement before the END (or DCM "INT" if present) should be: DCM
+"CLOSE".  This will close the file, restore buffers, etc.   Since  the
+CLOSE  will be executed before the symbol table is printed, the symbol
+table will not be included in your text file listing.  If you need  to
+include  the  text, then omit the DCM "CLOSE" and explicitly CLOSE the
+file with an immediately CLOSE command when you are  returned  to  the
+command level. 
+
+Warning**  Due to the memory management techniques used (48K MAXFILES)
+is always set to one.  This implies that several problems can  develop
+if  your  program  contains other disk commands sandwiched between the
+OPEN & CLOSE commands.  Should you need  to  execute  a  disk  command
+while  writing  the  assembled source to disk you must first CLOSE the
+file.  Once closed, you  can  execute  the  DOS  command.   After  the
+command  (DOS)  is  executed  you  may  continue  writing the assembly
+listing by APPENDing (instead of OPENing) and  then  WRITEing  to  the
+file.  *NOTE ** Remember,any DOS command terminates the WRITE command,
+so  if you issue any DOS commands when writing a text file out to disk
+you  must  reissue  the  WRITE  command  immediately  after  the   DOS
+command.ICL  uses  the DOS, so care must be take when writing files to
+disk
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

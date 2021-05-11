@@ -69,7 +69,7 @@ func (a *AppleII) Init(in io.Reader) (err error) {
 
 	for r := 0; r < 24; r++ {
 		for c := 0; c < 40; c++ {
-			cell = tview.NewTableCell("*")
+			cell = tview.NewTableCell("#")
 			cell.SetSelectable(false)
 			a.in.SetCell(r, c, cell)
 		}
@@ -79,6 +79,7 @@ func (a *AppleII) Init(in io.Reader) (err error) {
 }
 
 func (a *AppleII) Run() {
+
 	a.fullScreen()
 
 	go func() {
@@ -113,6 +114,11 @@ func (a *AppleII) fullScreen() {
 		if counter == 40 {
 			counter = 0
 		}
+
+		if i&0xff > 0xf7 {
+			a.WriteByte(uint16(i), '!')
+			continue
+		}
 	}
 }
 
@@ -146,12 +152,7 @@ func (a *AppleII) WriteByte(pc uint16, b uint8) {
 		if b < 0x20 || b > 0x7f {
 			pb = ' '
 		}
-		row := int(pc)/0x80 - 8
-		col := int(pc) % 0x80
-		if col >= 0 && col < 40 && row < 24 && row >= 0 {
-			c := a.in.GetCell(row, col)
-			c.SetText(string(pb))
-		}
+		a.pcToScreen(pc, pb)
 	}
 
 	if a.log != nil {
@@ -165,4 +166,37 @@ func (a *AppleII) WriteWord(pc uint16, n uint16) {
 		a.log.Printf("WW 0x%04X -> %x", pc, n)
 	}
 	a.Mem.WriteWord(pc, n)
+}
+
+var screenRowTable = [...]uint16{
+	0: 0,
+	1: 8,
+	2: 15,
+	3: 1,
+	4: 9,
+	5: 16,
+	6: 255,
+}
+
+func (a AppleII) pcToScreen(pc uint16, pb byte) {
+
+	low := pc & 0xff
+	row := 0
+
+	if low >= 0x80 {
+		low -= 0x80
+		row += 1
+	}
+
+	ll := low / 40
+	if ll >= 3 {
+		return
+	}
+
+	row += int(ll)
+	row = int(screenRowTable[row] + (pc >> 8) - 4)
+	col := int(pc) % 40
+
+	c := a.in.GetCell(row, col)
+	c.SetText(string(pb))
 }
