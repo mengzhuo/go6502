@@ -1,0 +1,35 @@
+	ORG $8000
+L1 = L2+L3
+L2 = L4-L5
+L6 EPZ L2
+L4 = !1
+L5 = $1f
+L3 = L5+L7
+L7 EPZ $3
+	CLC
+	CLD
+	CLI
+	CLV
+	DEX
+	INX
+	INY
+	NOP
+	PHA
+	PHP
+	PLA
+	PLP
+	RTI
+	SEC
+	SED
+	SEI
+	TAX
+	TAY
+	TSX
+	TYA
+	BRK
+	RTS
+	JMP	(L7+!1)
+	LDA	L7+!1
+	LDA	/$123
+L8	LDA	$23,X
+	JMP	(L8+1)

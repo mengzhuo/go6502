@@ -1,0 +1,21 @@
+	ICL 'zhuos/src/symbols.s'
+
+KBD = $C000
+KBDSTRB = $C010
+ASCBS  = $08 | %10000000
+
+	ORG _TEXT
+KEYIN   LDA   #$20
+	LDY   CH
+	STA   (BASL),Y   ;REPLACE FLASHING SCREEN
+        LDA   KBD        ;GET KEYCODE
+	CMP   #ASCBS     ;BACK SPACE? (CNTRL-H)
+	BEQ   >1
+	INC   CH
+	INC   CH
+^1	DEC   CH
+	AND   #$7f
+	STA   (BASL),Y
+        BIT   KBDSTRB    ;CLR KEY STROBE
+	RTS
+
